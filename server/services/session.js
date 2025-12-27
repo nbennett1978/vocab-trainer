@@ -141,7 +141,7 @@ function submitAnswer(sessionId, userAnswer, isRetry = false) {
     // Validate the answer
     const validation = validateAnswer(userAnswer, correctAnswer, isVerb && direction === 'tr_to_en');
 
-    // Handle "almost" result (typo tolerance)
+    // Handle "almost" result (typo tolerance) - only allow retry on first attempt
     if (validation.result === ValidationResult.ALMOST && !isRetry) {
         return {
             success: true,
@@ -151,8 +151,8 @@ function submitAnswer(sessionId, userAnswer, isRetry = false) {
         };
     }
 
-    const isCorrect = validation.result === ValidationResult.CORRECT ||
-                     (validation.result === ValidationResult.ALMOST && isRetry);
+    // On retry, require exact match - don't accept "almost" answers
+    const isCorrect = validation.result === ValidationResult.CORRECT;
 
     // Record the result
     session.results.push({

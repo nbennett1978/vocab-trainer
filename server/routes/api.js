@@ -7,7 +7,8 @@ const {
     learnerStatsOperations,
     achievementOperations,
     dailyActivityOperations,
-    wordOperations
+    wordOperations,
+    settingsOperations
 } = require('../db/database');
 const { getProgressStats, areAllWordsMastered } = require('../services/leitner');
 const { startSession, submitAnswer, endSession, getSessionState } = require('../services/session');
@@ -21,6 +22,7 @@ router.get('/dashboard', (req, res) => {
         const progressStats = getProgressStats();
         const recentActivity = dailyActivityOperations.getRecent.all(7);
         const wordCount = wordOperations.count.get();
+        const quickLessonCount = parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5');
 
         // Check for inactivity message
         let inactivityMessage = null;
@@ -52,7 +54,8 @@ router.get('/dashboard', (req, res) => {
                 recentActivity,
                 totalWords: wordCount.count,
                 allMastered,
-                inactivityMessage
+                inactivityMessage,
+                quickLessonCount
             }
         });
     } catch (error) {

@@ -89,11 +89,14 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage } = data.data;
+        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount } = data.data;
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
         document.getElementById('current-streak').textContent = stats.currentStreak;
+
+        // Update quick lesson button with dynamic word count
+        document.querySelector('.quick-btn .btn-desc').textContent = `${quickLessonCount} kelime`;
 
         // Update Leitner boxes
         const enToTr = progress.byDirection.en_to_tr;
