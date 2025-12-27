@@ -222,10 +222,11 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
             selectedWords = selectedWords.concat(dueWords.slice(0, targetCount - selectedWords.length));
         }
     } else if (sessionType === 'review_mastered') {
-        // Only get mastered words
-        const masteredWords = progressOperations.getMasteredWords.all(direction);
+        // Get words from boxes 3-5 (well-learned words for review)
+        const reviewWords = progressOperations.getReviewWords.all(direction);
         // Shuffle and take target count
-        selectedWords = shuffleArray(masteredWords).slice(0, targetCount);
+        selectedWords = shuffleArray(reviewWords).slice(0, targetCount);
+        console.log(`Review words found: ${reviewWords.length}, selected: ${selectedWords.length}`);
     } else {
         // Get words from the working set (box 1-5) that are due for review
         let dueWords = progressOperations.getWordsDueForReview.all(direction);
@@ -358,6 +359,12 @@ function areAllWordsMastered() {
     return stats.totalWords > 0 && stats.fullyMastered === stats.totalWords;
 }
 
+// Get count of review words (boxes 3-5)
+function getReviewWordCount() {
+    const result = progressOperations.countReviewWords.get();
+    return result?.count || 0;
+}
+
 module.exports = {
     BOX_INTERVALS,
     INITIAL_WORKING_SET_SIZE,
@@ -373,5 +380,6 @@ module.exports = {
     selectWordsForSession,
     shuffleArray,
     getProgressStats,
-    areAllWordsMastered
+    areAllWordsMastered,
+    getReviewWordCount
 };

@@ -105,6 +105,19 @@ const progressOperations = {
         WHERE p.leitner_box = 5 AND p.direction = ?
     `),
 
+    getReviewWords: db.prepare(`
+        SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
+        FROM progress p
+        JOIN words w ON p.word_id = w.id
+        WHERE p.leitner_box IN (3, 4, 5) AND p.direction = ?
+    `),
+
+    countReviewWords: db.prepare(`
+        SELECT COUNT(*) as count
+        FROM progress
+        WHERE leitner_box IN (3, 4, 5)
+    `),
+
     getWeakWords: db.prepare(`
         SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
         FROM progress p

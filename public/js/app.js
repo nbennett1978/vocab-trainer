@@ -89,7 +89,7 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount } = data.data;
+        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount, reviewWordCount } = data.data;
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
@@ -97,6 +97,19 @@ async function loadDashboard() {
 
         // Update quick lesson button with dynamic word count
         document.querySelector('.quick-btn .btn-desc').textContent = `${quickLessonCount} kelime`;
+
+        // Enable/disable review button based on available words (boxes 3-5)
+        const reviewBtn = document.querySelector('.review-btn');
+        const reviewBtnDesc = reviewBtn.querySelector('.btn-desc');
+        if (reviewWordCount > 0) {
+            reviewBtn.disabled = false;
+            reviewBtn.classList.remove('disabled');
+            reviewBtnDesc.textContent = 'Kutu 3-5';
+        } else {
+            reviewBtn.disabled = true;
+            reviewBtn.classList.add('disabled');
+            reviewBtnDesc.textContent = 'Kelime yok';
+        }
 
         // Update Leitner boxes
         const enToTr = progress.byDirection.en_to_tr;
