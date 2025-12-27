@@ -1,3 +1,16 @@
+# Kelime Trainer
+
+**Leitner aralıklı tekrar sistemi** kullanan web tabanlı Türkçe-İngilizce kelime öğrenme uygulaması. Kelimeler öğrendikçe 5 kutu arasında ilerler - doğru cevaplar kelimeleri yukarı taşır, yanlış cevaplar kutu 1'e geri gönderir.
+
+**Özellikler:**
+- **Akıllı tekrar** - Zorlandığın kelimeler daha sık karşına çıkar
+- **Çoklu eğitim modları** - Hızlı dersler, zor kelime pratiği ve tekrar oturumları
+- **İlerleme takibi** - Yıldızlar, seriler, başarılar ve haftalık aktivite
+- **Yönetici paneli** - Kelimeleri manuel veya toplu dosya yükleme ile ekle
+- **Mobil uyumlu** - Her cihazda çalışır
+
+---
+
 # Vocabulary Trainer
 
 A web-based Turkish-English vocabulary learning app using the **Leitner spaced repetition system**. Words progress through 5 boxes as you learn them - correct answers move words up, wrong answers send them back to box 1.
