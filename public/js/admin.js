@@ -28,6 +28,7 @@ function setupTabs() {
             // Refresh data when switching tabs
             if (btn.dataset.tab === 'words') loadWords();
             if (btn.dataset.tab === 'working-set') loadWorkingSet();
+            if (btn.dataset.tab === 'entire-set') loadEntireSet();
             if (btn.dataset.tab === 'progress') loadProgress();
             if (btn.dataset.tab === 'settings') loadSettings();
         });
@@ -189,33 +190,70 @@ function renderWorkingSet(words) {
         return;
     }
 
-    container.innerHTML = words.map(word => {
-        const successClass = word.successRatePercent === null ? ''
-            : word.successRatePercent >= 60 ? 'good'
-            : word.successRatePercent >= 40 ? 'medium'
-            : 'bad';
+    container.innerHTML = words.map(word => renderWordItem(word)).join('');
+}
 
-        return `
-            <div class="ws-word-item">
-                <div class="ws-word-main">
-                    <div class="ws-word-english">${escapeHtml(word.english)}</div>
-                    <div class="ws-word-turkish">${escapeHtml(word.turkish)}</div>
+// Load entire set
+async function loadEntireSet() {
+    try {
+        const response = await fetch('/admin/api/entire-set');
+        const data = await response.json();
+
+        if (data.success) {
+            const { words, count, inWorkingSet, notStarted } = data.data;
+
+            // Update stats
+            document.getElementById('es-count').textContent = count;
+            document.getElementById('es-in-working-set').textContent = inWorkingSet;
+            document.getElementById('es-not-started').textContent = notStarted;
+
+            // Render entire set list
+            renderEntireSet(words);
+        }
+    } catch (error) {
+        console.error('Load entire set error:', error);
+    }
+}
+
+// Render entire set
+function renderEntireSet(words) {
+    const container = document.getElementById('entire-set-list');
+
+    if (words.length === 0) {
+        container.innerHTML = '<p class="loading">No words in database yet.</p>';
+        return;
+    }
+
+    container.innerHTML = words.map(word => renderWordItem(word)).join('');
+}
+
+// Shared render function for word items
+function renderWordItem(word) {
+    const successClass = word.successRatePercent === null ? ''
+        : word.successRatePercent >= 60 ? 'good'
+        : word.successRatePercent >= 40 ? 'medium'
+        : 'bad';
+
+    return `
+        <div class="ws-word-item">
+            <div class="ws-word-main">
+                <div class="ws-word-english">${escapeHtml(word.english)}</div>
+                <div class="ws-word-turkish">${escapeHtml(word.turkish)}</div>
+            </div>
+            <div class="ws-word-boxes">
+                <span class="ws-box box-${word.en_to_tr.box}">EN→TR: Box ${word.en_to_tr.box}</span>
+                <span class="ws-box box-${word.tr_to_en.box}">TR→EN: Box ${word.tr_to_en.box}</span>
+            </div>
+            <div class="ws-success-rate">
+                <div class="ws-success-value ${successClass}">
+                    ${word.successRatePercent !== null ? word.successRatePercent + '%' : '-'}
                 </div>
-                <div class="ws-word-boxes">
-                    <span class="ws-box box-${word.en_to_tr.box}">EN→TR: Box ${word.en_to_tr.box}</span>
-                    <span class="ws-box box-${word.tr_to_en.box}">TR→EN: Box ${word.tr_to_en.box}</span>
-                </div>
-                <div class="ws-success-rate">
-                    <div class="ws-success-value ${successClass}">
-                        ${word.successRatePercent !== null ? word.successRatePercent + '%' : '-'}
-                    </div>
-                    <div class="ws-success-detail">
-                        ${word.totalCorrect}/${word.totalAsked}
-                    </div>
+                <div class="ws-success-detail">
+                    ${word.totalCorrect}/${word.totalAsked}
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+    `;
 }
 
 // Filter words

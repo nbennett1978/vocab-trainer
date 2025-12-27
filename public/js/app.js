@@ -178,12 +178,25 @@ function renderCategoryButtons(categories) {
         return;
     }
 
-    container.innerHTML = categories.map(cat => `
+    // Calculate total word count
+    const totalWords = categories.reduce((sum, cat) => sum + cat.word_count, 0);
+
+    // Add "All Categories" button first, then individual category buttons
+    const allCategoriesBtn = `
+        <button class="category-btn all-categories-btn" data-category="all">
+            <span class="cat-name">Tümü</span>
+            <span class="cat-count">${totalWords} kelime</span>
+        </button>
+    `;
+
+    const categoryBtns = categories.map(cat => `
         <button class="category-btn" data-category="${cat.category}">
             <span class="cat-name">${capitalizeFirst(cat.category)}</span>
             <span class="cat-count">${cat.word_count} kelime</span>
         </button>
     `).join('');
+
+    container.innerHTML = allCategoriesBtn + categoryBtns;
 
     // Add click handlers
     container.querySelectorAll('.category-btn').forEach(btn => {

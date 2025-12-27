@@ -90,13 +90,39 @@ function getWorkingSetWithStats() {
         LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
         LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
         WHERE p_en.leitner_box > 0 OR p_tr.leitner_box > 0
-        ORDER BY
-            CASE WHEN p_en.leitner_box > 0 AND p_tr.leitner_box > 0 THEN 0 ELSE 1 END,
-            (COALESCE(p_en.leitner_box, 0) + COALESCE(p_tr.leitner_box, 0)) ASC
     `);
 
     const words = query.all();
 
+    return formatWordsWithStats(words);
+}
+
+// Get ALL words with success rate details for admin view (entire set)
+function getEntireSetWithStats() {
+    const query = db.prepare(`
+        SELECT
+            w.id,
+            w.english,
+            w.turkish,
+            w.category,
+            p_en.leitner_box as en_to_tr_box,
+            p_en.times_asked as en_to_tr_asked,
+            p_en.times_correct as en_to_tr_correct,
+            p_tr.leitner_box as tr_to_en_box,
+            p_tr.times_asked as tr_to_en_asked,
+            p_tr.times_correct as tr_to_en_correct
+        FROM words w
+        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
+        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
+    `);
+
+    const words = query.all();
+
+    return formatWordsWithStats(words);
+}
+
+// Helper function to format words with stats
+function formatWordsWithStats(words) {
     return words.map(w => {
         const totalAsked = (w.en_to_tr_asked || 0) + (w.tr_to_en_asked || 0);
         const totalCorrect = (w.en_to_tr_correct || 0) + (w.tr_to_en_correct || 0);
@@ -374,6 +400,7 @@ module.exports = {
     getWorkingSetSize,
     getWorkingSetSuccessRate,
     getWorkingSetWithStats,
+    getEntireSetWithStats,
     initializeWorkingSet,
     expandWorkingSet,
     shouldExpandWorkingSet,

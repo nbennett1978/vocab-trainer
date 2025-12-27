@@ -326,6 +326,11 @@ body {
     margin-top: 2px;
 }
 
+.category-btn.all-categories-btn {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: var(--text-dark);
+}
+
 /* Special Buttons (Zor Kelimeler, Tekrar) */
 .special-buttons {
     display: flex;
