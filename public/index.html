@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelime Trainer 🌸</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Dashboard Screen -->
+        <div id="dashboard-screen" class="screen active">
+            <header class="dashboard-header">
+                <h1>🌸 Kelime Trainer 🌸</h1>
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <span class="stat-icon">⭐</span>
+                        <span id="total-stars" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">🔥</span>
+                        <span id="current-streak" class="stat-value">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Inactivity Message -->
+            <div id="inactivity-message" class="inactivity-message hidden"></div>
+
+            <!-- Progress Overview -->
+            <div class="progress-overview">
+                <h2>📊 İlerleme Durumu</h2>
+                <div class="leitner-boxes">
+                    <div class="leitner-box" data-box="1">
+                        <span class="box-label">Kutu 1</span>
+                        <span class="box-count" id="box-1-count">0</span>
+                        <span class="box-desc">Yeni</span>
+                    </div>
+                    <div class="leitner-box" data-box="2">
+                        <span class="box-label">Kutu 2</span>
+                        <span class="box-count" id="box-2-count">0</span>
+                        <span class="box-desc">Öğreniliyor</span>
+                    </div>
+                    <div class="leitner-box" data-box="3">
+                        <span class="box-label">Kutu 3</span>
+                        <span class="box-count" id="box-3-count">0</span>
+                        <span class="box-desc">İyi</span>
+                    </div>
+                    <div class="leitner-box" data-box="4">
+                        <span class="box-label">Kutu 4</span>
+                        <span class="box-count" id="box-4-count">0</span>
+                        <span class="box-desc">Çok İyi</span>
+                    </div>
+                    <div class="leitner-box" data-box="5">
+                        <span class="box-label">Kutu 5</span>
+                        <span class="box-count" id="box-5-count">0</span>
+                        <span class="box-desc">Öğrenildi! ✨</span>
+                    </div>
+                </div>
+                <div class="mastery-info">
+                    <span id="mastered-count">0</span> / <span id="total-words">0</span> kelime tamamen öğrenildi 💖
+                </div>
+            </div>
+
+            <!-- Session Selection -->
+            <div class="session-selection">
+                <h2>🎯 Ders Seç</h2>
+
+                <div class="category-selector">
+                    <label>Kategori:</label>
+                    <select id="category-select">
+                        <option value="all">Tümü</option>
+                    </select>
+                </div>
+
+                <div class="session-buttons">
+                    <button class="session-btn quick-btn" data-type="quick">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">Hızlı Ders</span>
+                        <span class="btn-desc">5 kelime</span>
+                    </button>
+                    <button class="session-btn long-btn" data-type="long">
+                        <span class="btn-icon">📚</span>
+                        <span class="btn-text">Uzun Ders</span>
+                        <span class="btn-desc">15 kelime</span>
+                    </button>
+                    <button class="session-btn review-btn" data-type="review_mastered">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Tekrar</span>
+                        <span class="btn-desc">Öğrenilenler</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Achievements -->
+            <div class="achievements-section">
+                <h2>🏆 Başarılar</h2>
+                <div id="achievements-list" class="achievements-list">
+                    <p class="no-achievements">Yeni şeyler öğrenmek için harika bir gün! 🌸✨</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Screen -->
+        <div id="training-screen" class="screen">
+            <header class="training-header">
+                <button id="back-btn" class="icon-btn">← Geri</button>
+                <div class="progress-indicator">
+                    <span id="current-word-num">1</span> / <span id="total-word-num">5</span>
+                </div>
+                <div class="session-stars">
+                    ⭐ <span id="session-stars">0</span>
+                </div>
+            </header>
+
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+
+            <div class="training-content">
+                <!-- Word Stats -->
+                <div id="word-stats" class="word-stats">
+                    <span class="stats-text"></span>
+                </div>
+
+                <!-- Direction Indicator -->
+                <div id="direction-indicator" class="direction-indicator">
+                    <span class="from-lang">EN</span>
+                    <span class="arrow">→</span>
+                    <span class="to-lang">TR</span>
+                </div>
+
+                <!-- Question Card -->
+                <div class="question-card">
+                    <div id="example-sentence" class="example-sentence"></div>
+                    <div id="question-word" class="question-word">word</div>
+                    <div id="category-badge" class="category-badge">verb</div>
+                </div>
+
+                <!-- Feedback Area -->
+                <div id="feedback" class="feedback hidden">
+                    <span class="feedback-text"></span>
+                </div>
+
+                <!-- Answer Input -->
+                <div class="answer-section">
+                    <input type="text" id="answer-input" class="answer-input" placeholder="Cevabını yaz..." autocomplete="off" autocapitalize="off">
+                    <button id="submit-btn" class="submit-btn">Kontrol Et ✨</button>
+                </div>
+
+                <!-- Correct Answer Display -->
+                <div id="correct-answer" class="correct-answer hidden">
+                    <span class="correct-label">Doğru cevap:</span>
+                    <span class="correct-text"></span>
+                </div>
+
+                <!-- Next Button -->
+                <button id="next-btn" class="next-btn hidden">Sonraki →</button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <div class="results-content">
+                <div id="confetti-container" class="confetti-container"></div>
+
+                <h1 class="results-title">🎉 Tebrikler! 🎉</h1>
+
+                <div class="results-stats">
+                    <div class="result-stat">
+                        <span class="result-value" id="result-correct">0</span>
+                        <span class="result-label">Doğru</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-value" id="result-total">0</span>
+                        <span class="result-label">Toplam</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-value" id="result-accuracy">0%</span>
+                        <span class="result-label">Başarı</span>
+                    </div>
+                </div>
+
+                <div class="stars-earned">
+                    ⭐ <span id="result-stars">0</span> yıldız kazandın!
+                </div>
+
+                <!-- New Achievements -->
+                <div id="new-achievements" class="new-achievements hidden">
+                    <h3>🏆 Yeni Başarı!</h3>
+                    <div id="achievement-display"></div>
+                </div>
+
+                <!-- All Mastered Message -->
+                <div id="all-mastered-message" class="all-mastered-message hidden">
+                    <h2>🌟 HARİKA! 🌟</h2>
+                    <p>Tüm kelimeleri öğrendin! Sen bir süperstarısın! 💖✨</p>
+                </div>
+
+                <button id="back-to-dashboard" class="back-dashboard-btn">Ana Sayfaya Dön 🏠</button>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner">🌸</div>
+            <p>Yükleniyor...</p>
+        </div>
+
+        <!-- No Words Message -->
+        <div id="no-words-screen" class="screen">
+            <div class="no-words-content">
+                <h1>📚</h1>
+                <h2>Kelime Bulunamadı</h2>
+                <p>Henüz öğrenilecek kelime eklenmemiş.</p>
+                <p>Yönetici panelinden kelime eklenebilir.</p>
+                <button onclick="loadDashboard()" class="back-dashboard-btn">Yenile 🔄</button>
+            </div>
+        </div>
+
+        <!-- Wrong Answer Popup -->
+        <div id="wrong-answer-popup" class="wrong-popup hidden">
+            <div class="wrong-popup-content">
+                <div class="wrong-popup-icon">😢</div>
+                <h2>Yanlış Cevap</h2>
+                <div class="wrong-popup-words">
+                    <div class="wrong-word-row">
+                        <span class="wrong-label">🇬🇧 English:</span>
+                        <span id="popup-english" class="wrong-value"></span>
+                    </div>
+                    <div class="wrong-word-row">
+                        <span class="wrong-label">🇹🇷 Türkçe:</span>
+                        <span id="popup-turkish" class="wrong-value"></span>
+                    </div>
+                </div>
+                <p class="wrong-popup-hint">Devam etmek için Enter'a bas ⏎</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/confetti.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
