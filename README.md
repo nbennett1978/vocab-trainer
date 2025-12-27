@@ -1,6 +1,19 @@
-# Vocabulary Trainer - Deployment Guide
+# Vocabulary Trainer
 
-## Prerequisites
+A web-based Turkish-English vocabulary learning app using the **Leitner spaced repetition system**. Words progress through 5 boxes as you learn them - correct answers move words up, wrong answers send them back to box 1.
+
+**Features:**
+- **Smart repetition** - Words you struggle with appear more often
+- **Multiple training modes** - Quick lessons, weak word practice, and review sessions
+- **Progress tracking** - Stars, streaks, achievements, and weekly activity
+- **Admin panel** - Add words manually or bulk upload from text files
+- **Mobile-friendly** - Works on any device
+
+---
+
+## Deployment Guide
+
+### Prerequisites
 
 - **Node.js** v20 or higher
 - **npm** (comes with Node.js)
