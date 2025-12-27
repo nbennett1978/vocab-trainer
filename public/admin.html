@@ -67,12 +67,9 @@
                             <label>Category</label>
                             <select id="upload-category">
                                 <option value="">Auto-detect from filename</option>
-                                <option value="verb">Verb</option>
-                                <option value="noun">Noun</option>
-                                <option value="adjective">Adjective</option>
-                                <option value="adverb">Adverb</option>
-                                <option value="other">Other</option>
+                                <option value="__new__">+ New category...</option>
                             </select>
+                            <input type="text" id="upload-new-category" class="hidden" placeholder="Enter new category name">
                         </div>
                         <div class="form-group flex-2">
                             <label>File</label>
@@ -90,11 +87,6 @@
                     <input type="text" id="search-input" placeholder="Search words...">
                     <select id="filter-category">
                         <option value="">All Categories</option>
-                        <option value="verb">Verbs</option>
-                        <option value="noun">Nouns</option>
-                        <option value="adjective">Adjectives</option>
-                        <option value="adverb">Adverbs</option>
-                        <option value="other">Other</option>
                     </select>
                 </div>
                 <div id="words-list" class="words-list">

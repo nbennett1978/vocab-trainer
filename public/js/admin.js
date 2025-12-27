@@ -6,6 +6,7 @@ let allWords = [];
 document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     setupForms();
+    loadCategories();
     loadWords();
     loadWorkingSet();
     loadProgress();
@@ -65,6 +66,52 @@ function setupForms() {
     // Search and filter
     document.getElementById('search-input').addEventListener('input', filterWords);
     document.getElementById('filter-category').addEventListener('change', filterWords);
+
+    // New category toggle for bulk upload
+    document.getElementById('upload-category').addEventListener('change', (e) => {
+        const newCategoryInput = document.getElementById('upload-new-category');
+        if (e.target.value === '__new__') {
+            newCategoryInput.classList.remove('hidden');
+            newCategoryInput.focus();
+        } else {
+            newCategoryInput.classList.add('hidden');
+            newCategoryInput.value = '';
+        }
+    });
+}
+
+// Load categories from server
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+
+        if (data.success) {
+            const categories = data.categories.filter(c => c !== 'all');
+
+            // Update upload category dropdown
+            const uploadSelect = document.getElementById('upload-category');
+            const currentUploadOptions = `
+                <option value="">Auto-detect from filename</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+                <option value="__new__">+ New category...</option>
+            `;
+            uploadSelect.innerHTML = currentUploadOptions;
+
+            // Update filter category dropdown
+            const filterSelect = document.getElementById('filter-category');
+            filterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+        }
+    } catch (error) {
+        console.error('Load categories error:', error);
+    }
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Load words
@@ -222,8 +269,19 @@ async function addWord() {
 // Upload file
 async function uploadFile() {
     const fileInput = document.getElementById('upload-file');
-    const category = document.getElementById('upload-category').value;
+    let category = document.getElementById('upload-category').value;
+    const newCategoryInput = document.getElementById('upload-new-category');
     const resultsDiv = document.getElementById('upload-results');
+
+    // Handle new category
+    if (category === '__new__') {
+        category = newCategoryInput.value.trim().toLowerCase();
+        if (!category) {
+            alert('Please enter a category name');
+            newCategoryInput.focus();
+            return;
+        }
+    }
 
     if (!fileInput.files[0]) {
         alert('Please select a file');
@@ -253,6 +311,8 @@ async function uploadFile() {
                 ${data.results.errors.length > 0 ? `Errors: ${data.results.errors.length}` : ''}
             `;
             document.getElementById('upload-form').reset();
+            document.getElementById('upload-new-category').classList.add('hidden');
+            loadCategories();
             loadWords();
         } else {
             resultsDiv.classList.add('error');
