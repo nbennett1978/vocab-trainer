@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at DATETIME NOT NULL,
     ended_at DATETIME,
-    session_type TEXT NOT NULL CHECK (session_type IN ('quick', 'long', 'review_mastered', 'category')),
+    session_type TEXT NOT NULL CHECK (session_type IN ('quick', 'weak_words', 'review_mastered', 'category')),
     category_filter TEXT DEFAULT 'all',
     words_asked INTEGER DEFAULT 0,
     words_correct INTEGER DEFAULT 0,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS learner_stats (
 -- Initialize default settings
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('quick_lesson_count', '5'),
-    ('long_lesson_count', '15'),
+    ('weak_words_count', '5'),
     ('new_words_per_day', '5'),
     ('mastered_review_chance', '0.1'),
     ('timezone', 'Europe/Istanbul');

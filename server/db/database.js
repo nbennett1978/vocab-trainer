@@ -105,6 +105,16 @@ const progressOperations = {
         WHERE p.leitner_box = 5 AND p.direction = ?
     `),
 
+    getWeakWords: db.prepare(`
+        SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
+        FROM progress p
+        JOIN words w ON p.word_id = w.id
+        WHERE p.leitner_box IN (1, 2) AND p.direction = ?
+        AND p.last_asked IS NOT NULL
+        ORDER BY p.last_asked DESC
+        LIMIT ?
+    `),
+
     insert: db.prepare(`
         INSERT INTO progress (word_id, direction, leitner_box)
         VALUES (@word_id, @direction, @leitner_box)

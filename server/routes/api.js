@@ -80,7 +80,7 @@ router.get('/session/start', (req, res) => {
         const { type = 'quick', category = 'all' } = req.query;
 
         // Validate session type
-        const validTypes = ['quick', 'long', 'review_mastered', 'category'];
+        const validTypes = ['quick', 'weak_words', 'review_mastered', 'category'];
         if (!validTypes.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid session type' });
         }

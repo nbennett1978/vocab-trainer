@@ -260,8 +260,8 @@ body {
     color: var(--white);
 }
 
-.long-btn {
-    background: linear-gradient(135deg, var(--purple) 0%, var(--light-purple) 100%);
+.weak-btn {
+    background: linear-gradient(135deg, #FF8B94 0%, #FFB347 100%);
     color: var(--white);
 }
 
@@ -321,6 +321,77 @@ body {
     color: var(--text-light);
     font-size: 0.9rem;
     width: 100%;
+}
+
+/* Weekly Activity Tracker */
+.weekly-tracker {
+    background: var(--white);
+    border-radius: 24px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: var(--shadow);
+}
+
+.weekly-tracker h2 {
+    font-size: 1.1rem;
+    color: var(--purple);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.weekly-boxes {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.day-box {
+    flex: 1;
+    background: var(--soft-white);
+    border-radius: 12px;
+    padding: 10px 4px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.day-box:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.day-box.today {
+    background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-purple) 100%);
+    border: 2px solid var(--primary-pink);
+}
+
+.day-box.has-activity {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.day-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.day-box.today .day-name {
+    color: var(--primary-pink);
+}
+
+.day-stars {
+    font-size: 1rem;
+    min-height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.day-count {
+    font-size: 0.65rem;
+    color: var(--text-light);
+    margin-top: 2px;
 }
 
 /* Training Screen */
@@ -678,14 +749,21 @@ body {
     margin-bottom: 8px;
 }
 
+.results-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .back-dashboard-btn {
-    padding: 16px 32px;
+    padding: 16px 24px;
     background: var(--white);
     color: var(--purple);
     border: none;
     border-radius: 20px;
     font-family: inherit;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
     box-shadow: var(--shadow);
@@ -693,6 +771,24 @@ body {
 }
 
 .back-dashboard-btn:hover {
+    transform: translateY(-2px);
+}
+
+.another-lesson-btn {
+    padding: 16px 24px;
+    background: linear-gradient(135deg, var(--primary-pink) 0%, var(--purple) 100%);
+    color: var(--white);
+    border: none;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s;
+}
+
+.another-lesson-btn:hover {
     transform: translateY(-2px);
 }
 

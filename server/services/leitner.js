@@ -183,7 +183,7 @@ function shouldExpandWorkingSet() {
 function selectWordsForSession(sessionType, categoryFilter, direction) {
     const settings = {
         quick: parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5'),
-        long: parseInt(settingsOperations.get.get('long_lesson_count')?.value || '15'),
+        weak_words: parseInt(settingsOperations.get.get('weak_words_count')?.value || '5'),
         review_mastered: 10,
         category: parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5')
     };
@@ -203,7 +203,19 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
     let selectedWords = [];
 
-    if (sessionType === 'review_mastered') {
+    if (sessionType === 'weak_words') {
+        // Get the last N weak words (in box 1-2, recently asked)
+        const weakWords = progressOperations.getWeakWords.all(direction, targetCount);
+        selectedWords = weakWords;
+
+        // If not enough weak words, fill with box 1-3 words
+        if (selectedWords.length < targetCount) {
+            let dueWords = progressOperations.getWordsDueForReview.all(direction);
+            dueWords = dueWords.filter(w => !selectedWords.find(s => s.id === w.id));
+            dueWords.sort((a, b) => a.leitner_box - b.leitner_box);
+            selectedWords = selectedWords.concat(dueWords.slice(0, targetCount - selectedWords.length));
+        }
+    } else if (sessionType === 'review_mastered') {
         // Only get mastered words
         const masteredWords = progressOperations.getMasteredWords.all(direction);
         // Shuffle and take target count

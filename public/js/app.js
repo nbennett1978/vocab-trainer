@@ -5,6 +5,7 @@ let currentSession = null;
 let isRetryMode = false;
 let currentWordData = null;
 let isPopupOpen = false;
+let lastSessionType = 'quick';
 
 // DOM Elements
 const screens = {
@@ -59,6 +60,11 @@ function setupEventListeners() {
         showScreen('dashboard');
         loadDashboard();
     });
+
+    // Another lesson button
+    document.getElementById('another-lesson').addEventListener('click', () => {
+        startSession(lastSessionType);
+    });
 }
 
 // Show screen
@@ -83,7 +89,7 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, totalWords, allMastered, inactivityMessage } = data.data;
+        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage } = data.data;
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
@@ -120,6 +126,9 @@ async function loadDashboard() {
         } else {
             achievementsList.innerHTML = '<p class="no-achievements">Yeni şeyler öğrenmek için harika bir gün! 🌸✨</p>';
         }
+
+        // Render weekly activity tracker
+        renderWeeklyTracker(recentActivity || []);
 
         // Load categories
         await loadCategories();
@@ -159,6 +168,7 @@ async function loadCategories() {
 // Start a training session
 async function startSession(type) {
     setLoading(true);
+    lastSessionType = type;
     try {
         const category = document.getElementById('category-select').value;
         const response = await fetch(`/api/session/start?type=${type}&category=${category}`);
@@ -453,6 +463,51 @@ function closeWrongPopup() {
         document.getElementById('next-btn').classList.remove('hidden');
         document.getElementById('next-btn').focus();
     }
+}
+
+// Render weekly activity tracker
+function renderWeeklyTracker(recentActivity) {
+    const container = document.getElementById('weekly-boxes');
+    const dayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+
+    // Get last 7 days (today is rightmost)
+    const days = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayOfWeek = date.getDay();
+
+        // Find activity for this date
+        const activity = recentActivity.find(a => a.date === dateStr);
+        const sessions = activity ? activity.sessions_completed : 0;
+
+        days.push({
+            name: dayNames[dayOfWeek],
+            date: dateStr,
+            sessions: sessions,
+            isToday: i === 0
+        });
+    }
+
+    container.innerHTML = days.map(day => {
+        const stars = day.sessions === 0 ? ''
+            : day.sessions === 1 ? '⭐'
+            : '⭐⭐';
+        const classes = ['day-box'];
+        if (day.isToday) classes.push('today');
+        if (day.sessions > 0) classes.push('has-activity');
+
+        return `
+            <div class="${classes.join(' ')}">
+                <div class="day-name">${day.name}</div>
+                <div class="day-stars">${stars || '·'}</div>
+                <div class="day-count">${day.sessions > 0 ? day.sessions + ' ders' : ''}</div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Helper functions

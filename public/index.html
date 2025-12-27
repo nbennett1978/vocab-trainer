@@ -82,10 +82,10 @@
                         <span class="btn-text">Hızlı Ders</span>
                         <span class="btn-desc">5 kelime</span>
                     </button>
-                    <button class="session-btn long-btn" data-type="long">
-                        <span class="btn-icon">📚</span>
-                        <span class="btn-text">Uzun Ders</span>
-                        <span class="btn-desc">15 kelime</span>
+                    <button class="session-btn weak-btn" data-type="weak_words">
+                        <span class="btn-icon">💪</span>
+                        <span class="btn-text">Zor Kelimeler</span>
+                        <span class="btn-desc">Son yanlışlar</span>
                     </button>
                     <button class="session-btn review-btn" data-type="review_mastered">
                         <span class="btn-icon">🔄</span>
@@ -100,6 +100,14 @@
                 <h2>🏆 Başarılar</h2>
                 <div id="achievements-list" class="achievements-list">
                     <p class="no-achievements">Yeni şeyler öğrenmek için harika bir gün! 🌸✨</p>
+                </div>
+            </div>
+
+            <!-- Weekly Activity Tracker -->
+            <div class="weekly-tracker">
+                <h2>📅 Bu Hafta</h2>
+                <div id="weekly-boxes" class="weekly-boxes">
+                    <!-- 7 day boxes will be rendered by JavaScript -->
                 </div>
             </div>
         </div>
@@ -200,7 +208,10 @@
                     <p>Tüm kelimeleri öğrendin! Sen bir süperstarısın! 💖✨</p>
                 </div>
 
-                <button id="back-to-dashboard" class="back-dashboard-btn">Ana Sayfaya Dön 🏠</button>
+                <div class="results-buttons">
+                    <button id="back-to-dashboard" class="back-dashboard-btn">Ana Sayfa 🏠</button>
+                    <button id="another-lesson" class="another-lesson-btn">Bir Ders Daha! 📚</button>
+                </div>
             </div>
         </div>
 

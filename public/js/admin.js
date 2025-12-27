@@ -488,8 +488,7 @@ async function loadSettings() {
         if (data.success) {
             const s = data.settings;
             document.getElementById('setting-quick').value = s.quick_lesson_count || 5;
-            document.getElementById('setting-long').value = s.long_lesson_count || 15;
-            document.getElementById('setting-new-words').value = s.new_words_per_day || 5;
+            document.getElementById('setting-weak-words').value = s.weak_words_count || 5;
             document.getElementById('setting-review-chance').value = s.mastered_review_chance || 0.1;
             document.getElementById('setting-timezone').value = s.timezone || 'Europe/Istanbul';
         }
@@ -502,8 +501,7 @@ async function loadSettings() {
 async function saveSettings() {
     const settings = {
         quick_lesson_count: document.getElementById('setting-quick').value,
-        long_lesson_count: document.getElementById('setting-long').value,
-        new_words_per_day: document.getElementById('setting-new-words').value,
+        weak_words_count: document.getElementById('setting-weak-words').value,
         mastered_review_chance: document.getElementById('setting-review-chance').value,
         timezone: document.getElementById('setting-timezone').value
     };
