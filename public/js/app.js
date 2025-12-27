@@ -551,20 +551,31 @@ function renderCategoryProgress(categoryProgress) {
     container.innerHTML = rows + totalRow;
 }
 
+// Helper to get date string in GMT+3 (Europe/Istanbul)
+function getDateInIstanbul(date) {
+    return date.toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+}
+
+// Helper to get day of week in GMT+3
+function getDayOfWeekInIstanbul(date) {
+    return parseInt(date.toLocaleDateString('en-US', { timeZone: 'Europe/Istanbul', weekday: 'numeric' })) % 7;
+}
+
 // Render weekly activity tracker
 function renderWeeklyTracker(recentActivity) {
     const container = document.getElementById('weekly-boxes');
     const dayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
-    // Get last 7 days (today is rightmost)
+    // Get last 7 days (today is rightmost) - using GMT+3 timezone
     const days = [];
-    const today = new Date();
+    const now = new Date();
+    const todayStr = getDateInIstanbul(now);
 
     for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
+        const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        const dayOfWeek = date.getDay();
+        const dateStr = getDateInIstanbul(date);
+        const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
 
         // Find activity for this date
         const activity = recentActivity.find(a => a.date === dateStr);
