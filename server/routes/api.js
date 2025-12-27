@@ -23,6 +23,7 @@ router.get('/dashboard', (req, res) => {
         const recentActivity = dailyActivityOperations.getRecent.all(7);
         const wordCount = wordOperations.count.get();
         const quickLessonCount = parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5');
+        const answerTimeout = parseInt(settingsOperations.get.get('answer_timeout')?.value || '30');
         const reviewWordCount = getReviewWordCount();
         const categoryProgress = wordOperations.getCategoryProgress.all();
 
@@ -58,6 +59,7 @@ router.get('/dashboard', (req, res) => {
                 allMastered,
                 inactivityMessage,
                 quickLessonCount,
+                answerTimeout,
                 reviewWordCount,
                 categoryProgress
             }

@@ -8,6 +8,11 @@ let isPopupOpen = false;
 let lastSessionType = 'category';
 let lastSessionCategory = 'all';
 
+// Timer state
+let answerTimeout = 30; // Default, will be loaded from settings
+let timerInterval = null;
+let timeRemaining = 0;
+
 // DOM Elements
 const screens = {
     dashboard: document.getElementById('dashboard-screen'),
@@ -32,6 +37,7 @@ function setupEventListeners() {
     // Back button
     document.getElementById('back-btn').addEventListener('click', () => {
         if (confirm('Dersi bitirmek istediğinden emin misin?')) {
+            stopTimer();
             showScreen('dashboard');
             loadDashboard();
         }
@@ -52,6 +58,9 @@ function setupEventListeners() {
 
     // Submit button
     document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+
+    // Don't Know button
+    document.getElementById('dont-know-btn').addEventListener('click', handleDontKnow);
 
     // Next button
     document.getElementById('next-btn').addEventListener('click', nextWord);
@@ -90,7 +99,12 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress } = data.data;
+        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress, answerTimeout: timeout } = data.data;
+
+        // Store answer timeout setting
+        if (timeout) {
+            answerTimeout = timeout;
+        }
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
@@ -293,13 +307,114 @@ function displayWord(wordData) {
     document.getElementById('answer-input').value = '';
     document.getElementById('answer-input').disabled = false;
     document.getElementById('submit-btn').disabled = false;
+    document.getElementById('dont-know-btn').disabled = false;
     document.getElementById('feedback').classList.add('hidden');
     document.getElementById('correct-answer').classList.add('hidden');
     document.getElementById('next-btn').classList.add('hidden');
     isRetryMode = false;
 
+    // Start countdown timer
+    startTimer();
+
     // Focus input
     document.getElementById('answer-input').focus();
+}
+
+// Timer functions
+function startTimer() {
+    // Clear any existing timer
+    stopTimer();
+
+    // Initialize timer
+    timeRemaining = answerTimeout;
+    updateTimerDisplay();
+
+    // Start countdown
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+
+        if (timeRemaining <= 0) {
+            handleTimeUp();
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateTimerDisplay() {
+    const timerEl = document.getElementById('countdown-timer');
+    const timerValue = document.getElementById('timer-value');
+    timerValue.textContent = timeRemaining;
+
+    // Update timer styling based on time remaining
+    timerEl.classList.remove('warning', 'danger');
+    if (timeRemaining <= 5) {
+        timerEl.classList.add('danger');
+    } else if (timeRemaining <= 10) {
+        timerEl.classList.add('warning');
+    }
+}
+
+function handleTimeUp() {
+    stopTimer();
+    // Treat as "don't know" - submit empty answer to mark as incorrect
+    handleDontKnow();
+}
+
+// Handle "Don't Know" button click
+async function handleDontKnow() {
+    stopTimer();
+
+    // Disable inputs
+    document.getElementById('answer-input').disabled = true;
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('dont-know-btn').disabled = true;
+
+    try {
+        // Submit empty answer to mark as incorrect
+        const response = await fetch('/api/session/answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId: currentSession.id,
+                answer: '',
+                isRetry: false
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error);
+        }
+
+        // Update stars
+        currentSession.stars = data.starsEarned;
+        document.getElementById('session-stars').textContent = data.starsEarned;
+
+        // Show incorrect feedback
+        const feedbackEl = document.getElementById('feedback');
+        feedbackEl.classList.remove('hidden', 'correct', 'incorrect', 'almost');
+        feedbackEl.classList.add('incorrect');
+        feedbackEl.querySelector('.feedback-text').textContent = 'Bilmiyorum 😢';
+
+        // Store next word data
+        currentSession.nextWord = data.nextWord;
+        currentSession.isComplete = data.isComplete;
+
+        // Show popup with both words
+        showWrongPopup(currentWordData.english, currentWordData.turkish);
+
+    } catch (error) {
+        console.error('Dont know error:', error);
+        alert('Bir hata oluştu: ' + error.message);
+    }
 }
 
 // Submit answer
@@ -311,6 +426,9 @@ async function submitAnswer() {
         input.focus();
         return;
     }
+
+    // Stop the timer
+    stopTimer();
 
     try {
         const response = await fetch('/api/session/answer', {
@@ -349,6 +467,7 @@ async function submitAnswer() {
         // Disable input
         input.disabled = true;
         document.getElementById('submit-btn').disabled = true;
+        document.getElementById('dont-know-btn').disabled = true;
 
         if (data.result === 'correct') {
             feedbackEl.classList.add('correct');
@@ -396,6 +515,7 @@ function nextWord() {
 
 // End session
 async function endSession() {
+    stopTimer();
     try {
         const response = await fetch('/api/session/end', {
             method: 'POST',

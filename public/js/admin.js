@@ -631,6 +631,7 @@ async function loadSettings() {
             document.getElementById('setting-quick').value = s.quick_lesson_count || 5;
             document.getElementById('setting-weak-words').value = s.weak_words_count || 5;
             document.getElementById('setting-review-chance').value = s.mastered_review_chance || 0.1;
+            document.getElementById('setting-answer-timeout').value = s.answer_timeout || 30;
             document.getElementById('setting-timezone').value = s.timezone || 'Europe/Istanbul';
         }
     } catch (error) {
@@ -644,6 +645,7 @@ async function saveSettings() {
         quick_lesson_count: document.getElementById('setting-quick').value,
         weak_words_count: document.getElementById('setting-weak-words').value,
         mastered_review_chance: document.getElementById('setting-review-chance').value,
+        answer_timeout: document.getElementById('setting-answer-timeout').value,
         timezone: document.getElementById('setting-timezone').value
     };
 

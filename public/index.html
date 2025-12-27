@@ -109,6 +109,10 @@
                 <div class="progress-indicator">
                     <span id="current-word-num">1</span> / <span id="total-word-num">5</span>
                 </div>
+                <div id="countdown-timer" class="countdown-timer">
+                    <span class="timer-icon">⏱️</span>
+                    <span id="timer-value" class="timer-value">30</span>
+                </div>
                 <div class="session-stars">
                     ⭐ <span id="session-stars">0</span>
                 </div>
@@ -146,7 +150,10 @@
                 <!-- Answer Input -->
                 <div class="answer-section">
                     <input type="text" id="answer-input" class="answer-input" placeholder="Cevabını yaz..." autocomplete="off" autocapitalize="off">
-                    <button id="submit-btn" class="submit-btn">Kontrol Et ✨</button>
+                    <div class="answer-buttons">
+                        <button id="dont-know-btn" class="dont-know-btn">Bilmiyorum 🤷</button>
+                        <button id="submit-btn" class="submit-btn">Kontrol Et ✨</button>
+                    </div>
                 </div>
 
                 <!-- Correct Answer Display -->

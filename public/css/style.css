@@ -587,6 +587,45 @@ body {
     box-shadow: var(--shadow);
 }
 
+/* Countdown Timer */
+.countdown-timer {
+    background: var(--white);
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.countdown-timer .timer-icon {
+    font-size: 1rem;
+}
+
+.countdown-timer .timer-value {
+    font-size: 1.1rem;
+    min-width: 24px;
+    text-align: center;
+}
+
+.countdown-timer.warning {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.countdown-timer.danger {
+    background: #fee2e2;
+    color: #dc2626;
+    animation: pulse-danger 0.5s infinite;
+}
+
+@keyframes pulse-danger {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
 .progress-bar-container {
     height: 8px;
     background: rgba(255,255,255,0.5);
@@ -716,6 +755,7 @@ body {
 
 .answer-section {
     display: flex;
+    flex-direction: column;
     gap: 12px;
     margin-bottom: 16px;
 }
@@ -736,7 +776,37 @@ body {
     box-shadow: 0 0 0 4px rgba(255, 105, 180, 0.2);
 }
 
+.answer-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.dont-know-btn {
+    padding: 14px 20px;
+    background: var(--soft-white);
+    color: var(--text-light);
+    border: 2px solid var(--light-pink);
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dont-know-btn:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #dc2626;
+}
+
+.dont-know-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .submit-btn {
+    flex: 1;
     padding: 14px 24px;
     background: linear-gradient(135deg, var(--primary-pink) 0%, var(--purple) 100%);
     color: var(--white);
@@ -1029,12 +1099,18 @@ body {
         font-size: 1.8rem;
     }
 
-    .answer-section {
+    .answer-buttons {
         flex-direction: column;
     }
 
-    .submit-btn {
+    .submit-btn,
+    .dont-know-btn {
         width: 100%;
+    }
+
+    .countdown-timer {
+        padding: 6px 10px;
+        font-size: 0.9rem;
     }
 
     .results-stats {

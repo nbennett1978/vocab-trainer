@@ -362,7 +362,7 @@ router.get('/settings', (req, res) => {
 // Update settings
 router.put('/settings', (req, res) => {
     try {
-        const allowedKeys = ['quick_lesson_count', 'weak_words_count', 'mastered_review_chance', 'timezone'];
+        const allowedKeys = ['quick_lesson_count', 'weak_words_count', 'mastered_review_chance', 'timezone', 'answer_timeout'];
 
         for (const [key, value] of Object.entries(req.body)) {
             if (allowedKeys.includes(key)) {
