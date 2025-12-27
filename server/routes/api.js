@@ -24,6 +24,7 @@ router.get('/dashboard', (req, res) => {
         const wordCount = wordOperations.count.get();
         const quickLessonCount = parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5');
         const reviewWordCount = getReviewWordCount();
+        const categoryProgress = wordOperations.getCategoryProgress.all();
 
         // Check for inactivity message
         let inactivityMessage = null;
@@ -57,7 +58,8 @@ router.get('/dashboard', (req, res) => {
                 allMastered,
                 inactivityMessage,
                 quickLessonCount,
-                reviewWordCount
+                reviewWordCount,
+                categoryProgress
             }
         });
     } catch (error) {

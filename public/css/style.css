@@ -406,6 +406,82 @@ body {
     margin-top: 2px;
 }
 
+/* Category Evaluation */
+.category-evaluation {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 20px;
+    margin-top: 24px;
+    box-shadow: var(--shadow);
+}
+
+.category-evaluation h2 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    color: var(--text-dark);
+}
+
+.category-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.category-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-light);
+    border-radius: 12px;
+}
+
+.category-row.total-row {
+    background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-purple) 100%);
+    font-weight: 700;
+    margin-top: 8px;
+    border-top: 2px solid var(--primary-pink);
+}
+
+.category-name {
+    min-width: 100px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.category-bar-container {
+    flex: 1;
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.category-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-pink) 0%, var(--purple) 100%);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+}
+
+.category-stats {
+    min-width: 60px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.category-row.total-row .category-stats {
+    color: var(--text-dark);
+}
+
+.no-data {
+    text-align: center;
+    color: var(--text-light);
+    padding: 16px;
+}
+
 /* Training Screen */
 .training-header {
     display: flex;

@@ -89,7 +89,7 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount, reviewWordCount } = data.data;
+        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount, reviewWordCount, categoryProgress } = data.data;
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
@@ -145,6 +145,9 @@ async function loadDashboard() {
 
         // Render weekly activity tracker
         renderWeeklyTracker(recentActivity || []);
+
+        // Render category evaluation
+        renderCategoryProgress(categoryProgress || []);
 
         // Load categories
         await loadCategories();
@@ -479,6 +482,51 @@ function closeWrongPopup() {
         document.getElementById('next-btn').classList.remove('hidden');
         document.getElementById('next-btn').focus();
     }
+}
+
+// Render category progress evaluation
+function renderCategoryProgress(categoryProgress) {
+    const container = document.getElementById('category-progress');
+
+    if (!categoryProgress || categoryProgress.length === 0) {
+        container.innerHTML = '<p class="no-data">Henüz kelime yok</p>';
+        return;
+    }
+
+    // Calculate totals
+    const totals = categoryProgress.reduce((acc, cat) => {
+        acc.total += cat.total_words;
+        acc.mastered += cat.mastered_words;
+        return acc;
+    }, { total: 0, mastered: 0 });
+
+    // Render category rows
+    const rows = categoryProgress.map(cat => {
+        const percentage = cat.total_words > 0 ? Math.round((cat.mastered_words / cat.total_words) * 100) : 0;
+        return `
+            <div class="category-row">
+                <span class="category-name">${capitalizeFirst(cat.category)}</span>
+                <div class="category-bar-container">
+                    <div class="category-bar" style="width: ${percentage}%"></div>
+                </div>
+                <span class="category-stats">${cat.mastered_words} / ${cat.total_words}</span>
+            </div>
+        `;
+    }).join('');
+
+    // Add total row
+    const totalPercentage = totals.total > 0 ? Math.round((totals.mastered / totals.total) * 100) : 0;
+    const totalRow = `
+        <div class="category-row total-row">
+            <span class="category-name">Toplam</span>
+            <div class="category-bar-container">
+                <div class="category-bar" style="width: ${totalPercentage}%"></div>
+            </div>
+            <span class="category-stats">${totals.mastered} / ${totals.total}</span>
+        </div>
+    `;
+
+    container.innerHTML = rows + totalRow;
 }
 
 // Render weekly activity tracker

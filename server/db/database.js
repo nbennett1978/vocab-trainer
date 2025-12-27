@@ -58,7 +58,21 @@ const wordOperations = {
 
     count: db.prepare('SELECT COUNT(*) as count FROM words'),
 
-    countByCategory: db.prepare('SELECT category, COUNT(*) as count FROM words GROUP BY category')
+    countByCategory: db.prepare('SELECT category, COUNT(*) as count FROM words GROUP BY category'),
+
+    getCategoryProgress: db.prepare(`
+        SELECT
+            w.category,
+            COUNT(DISTINCT w.id) as total_words,
+            COUNT(DISTINCT CASE
+                WHEN p1.leitner_box >= 3 OR p2.leitner_box >= 3 THEN w.id
+            END) as mastered_words
+        FROM words w
+        LEFT JOIN progress p1 ON w.id = p1.word_id AND p1.direction = 'en_to_tr'
+        LEFT JOIN progress p2 ON w.id = p2.word_id AND p2.direction = 'tr_to_en'
+        GROUP BY w.category
+        ORDER BY w.category
+    `)
 };
 
 // Progress operations
