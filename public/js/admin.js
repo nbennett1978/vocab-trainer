@@ -1,6 +1,8 @@
 // Vocabulary Trainer - Admin Dashboard
 
 let allWords = [];
+let workingSetWords = [];
+let entireSetWords = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -79,6 +81,12 @@ function setupForms() {
             newCategoryInput.value = '';
         }
     });
+
+    // Working set category filter
+    document.getElementById('ws-filter-category').addEventListener('change', filterWorkingSet);
+
+    // Entire set category filter
+    document.getElementById('es-filter-category').addEventListener('change', filterEntireSet);
 }
 
 // Load categories from server
@@ -102,6 +110,20 @@ async function loadCategories() {
             // Update filter category dropdown
             const filterSelect = document.getElementById('filter-category');
             filterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+
+            // Update working set filter dropdown
+            const wsFilterSelect = document.getElementById('ws-filter-category');
+            wsFilterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+
+            // Update entire set filter dropdown
+            const esFilterSelect = document.getElementById('es-filter-category');
+            esFilterSelect.innerHTML = `
                 <option value="">All Categories</option>
                 ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
             `;
@@ -168,17 +190,27 @@ async function loadWorkingSet() {
 
         if (data.success) {
             const { words, count, overallSuccessRate } = data.data;
+            workingSetWords = words;
 
             // Update stats
             document.getElementById('ws-count').textContent = count;
             document.getElementById('ws-success-rate').textContent = `${overallSuccessRate}%`;
 
-            // Render working set list
-            renderWorkingSet(words);
+            // Render working set list (apply current filter)
+            filterWorkingSet();
         }
     } catch (error) {
         console.error('Load working set error:', error);
     }
+}
+
+// Filter working set
+function filterWorkingSet() {
+    const category = document.getElementById('ws-filter-category').value;
+    const filtered = category
+        ? workingSetWords.filter(w => w.category === category)
+        : workingSetWords;
+    renderWorkingSet(filtered);
 }
 
 // Render working set
@@ -201,18 +233,28 @@ async function loadEntireSet() {
 
         if (data.success) {
             const { words, count, inWorkingSet, notStarted } = data.data;
+            entireSetWords = words;
 
             // Update stats
             document.getElementById('es-count').textContent = count;
             document.getElementById('es-in-working-set').textContent = inWorkingSet;
             document.getElementById('es-not-started').textContent = notStarted;
 
-            // Render entire set list
-            renderEntireSet(words);
+            // Render entire set list (apply current filter)
+            filterEntireSet();
         }
     } catch (error) {
         console.error('Load entire set error:', error);
     }
+}
+
+// Filter entire set
+function filterEntireSet() {
+    const category = document.getElementById('es-filter-category').value;
+    const filtered = category
+        ? entireSetWords.filter(w => w.category === category)
+        : entireSetWords;
+    renderEntireSet(filtered);
 }
 
 // Render entire set
@@ -240,6 +282,7 @@ function renderWordItem(word) {
                 <div class="ws-word-english">${escapeHtml(word.english)}</div>
                 <div class="ws-word-turkish">${escapeHtml(word.turkish)}</div>
             </div>
+            <span class="ws-word-category">${word.category}</span>
             <div class="ws-word-boxes">
                 <span class="ws-box box-${word.en_to_tr.box}">EN→TR: Box ${word.en_to_tr.box}</span>
                 <span class="ws-box box-${word.tr_to_en.box}">TR→EN: Box ${word.tr_to_en.box}</span>

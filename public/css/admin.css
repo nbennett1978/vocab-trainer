@@ -622,6 +622,17 @@ body {
     color: var(--text-light);
 }
 
+.ws-word-category {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    color: var(--text-light);
+    text-transform: capitalize;
+    min-width: 70px;
+    text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .admin-container {
