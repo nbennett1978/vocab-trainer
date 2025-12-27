@@ -2,7 +2,7 @@
 node_modules/
 
 # Database and user data
-data/
+#data/
 *.db
 *.db-shm
 *.db-wal
