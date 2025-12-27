@@ -43,6 +43,15 @@ const wordOperations = {
 
     getCategories: db.prepare('SELECT DISTINCT category FROM words ORDER BY category'),
 
+    getCategoriesWithCounts: db.prepare(`
+        SELECT
+            w.category,
+            COUNT(DISTINCT w.id) as word_count
+        FROM words w
+        GROUP BY w.category
+        ORDER BY w.category
+    `),
+
     insert: db.prepare(`
         INSERT INTO words (english, turkish, category, example_sentence)
         VALUES (@english, @turkish, @category, @example_sentence)

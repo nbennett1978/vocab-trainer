@@ -5,7 +5,8 @@ let currentSession = null;
 let isRetryMode = false;
 let currentWordData = null;
 let isPopupOpen = false;
-let lastSessionType = 'quick';
+let lastSessionType = 'category';
+let lastSessionCategory = 'all';
 
 // DOM Elements
 const screens = {
@@ -23,9 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Session buttons
-    document.querySelectorAll('.session-btn').forEach(btn => {
-        btn.addEventListener('click', () => startSession(btn.dataset.type));
+    // Special session buttons (weak_words, review_mastered)
+    document.querySelectorAll('.special-buttons .session-btn').forEach(btn => {
+        btn.addEventListener('click', () => startSession(btn.dataset.type, 'all'));
     });
 
     // Back button
@@ -63,7 +64,7 @@ function setupEventListeners() {
 
     // Another lesson button
     document.getElementById('another-lesson').addEventListener('click', () => {
-        startSession(lastSessionType);
+        startSession(lastSessionType, lastSessionCategory);
     });
 }
 
@@ -89,14 +90,11 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, recentActivity, totalWords, allMastered, inactivityMessage, quickLessonCount, reviewWordCount, categoryProgress } = data.data;
+        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress } = data.data;
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
         document.getElementById('current-streak').textContent = stats.currentStreak;
-
-        // Update quick lesson button with dynamic word count
-        document.querySelector('.quick-btn .btn-desc').textContent = `${quickLessonCount} kelime`;
 
         // Enable/disable review button based on available words (boxes 3-5)
         const reviewBtn = document.querySelector('.review-btn');
@@ -133,16 +131,6 @@ async function loadDashboard() {
             inactivityEl.classList.add('hidden');
         }
 
-        // Update achievements
-        const achievementsList = document.getElementById('achievements-list');
-        if (achievements.length > 0) {
-            achievementsList.innerHTML = achievements.map(a =>
-                `<span class="achievement-badge">${getAchievementEmoji(a.type)} ${getAchievementLabel(a.type)}</span>`
-            ).join('');
-        } else {
-            achievementsList.innerHTML = '<p class="no-achievements">Yeni şeyler öğrenmek için harika bir gün! 🌸✨</p>';
-        }
-
         // Render weekly activity tracker
         renderWeeklyTracker(recentActivity || []);
 
@@ -167,29 +155,50 @@ async function loadDashboard() {
     }
 }
 
-// Load categories
+// Load categories and render buttons
 async function loadCategories() {
     try {
         const response = await fetch('/api/categories');
         const data = await response.json();
 
-        if (data.success) {
-            const select = document.getElementById('category-select');
-            select.innerHTML = data.categories.map(cat =>
-                `<option value="${cat}">${cat === 'all' ? 'Tümü' : capitalizeFirst(cat)}</option>`
-            ).join('');
+        if (data.success && data.categoriesWithCounts) {
+            renderCategoryButtons(data.categoriesWithCounts);
         }
     } catch (error) {
         console.error('Categories load error:', error);
     }
 }
 
+// Render category buttons
+function renderCategoryButtons(categories) {
+    const container = document.getElementById('category-buttons');
+
+    if (!categories || categories.length === 0) {
+        container.innerHTML = '<p class="no-data">Henüz kategori yok</p>';
+        return;
+    }
+
+    container.innerHTML = categories.map(cat => `
+        <button class="category-btn" data-category="${cat.category}">
+            <span class="cat-name">${capitalizeFirst(cat.category)}</span>
+            <span class="cat-count">${cat.word_count} kelime</span>
+        </button>
+    `).join('');
+
+    // Add click handlers
+    container.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            startSession('category', btn.dataset.category);
+        });
+    });
+}
+
 // Start a training session
-async function startSession(type) {
+async function startSession(type, category = 'all') {
     setLoading(true);
     lastSessionType = type;
+    lastSessionCategory = category;
     try {
-        const category = document.getElementById('category-select').value;
         const response = await fetch(`/api/session/start?type=${type}&category=${category}`);
         const data = await response.json();
 

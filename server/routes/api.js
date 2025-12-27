@@ -72,9 +72,11 @@ router.get('/dashboard', (req, res) => {
 router.get('/categories', (req, res) => {
     try {
         const categories = wordOperations.getCategories.all();
+        const categoriesWithCounts = wordOperations.getCategoriesWithCounts.all();
         res.json({
             success: true,
-            categories: ['all', ...categories.map(c => c.category)]
+            categories: ['all', ...categories.map(c => c.category)],
+            categoriesWithCounts: categoriesWithCounts
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

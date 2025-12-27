@@ -282,6 +282,70 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* Category Buttons Grid */
+.category-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 80px;
+}
+
+.category-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    min-width: 100px;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    background: linear-gradient(135deg, var(--primary-pink) 0%, var(--purple) 100%);
+    color: var(--white);
+}
+
+.category-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.category-btn:active {
+    transform: translateY(0);
+}
+
+.category-btn .cat-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.category-btn .cat-count {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+/* Special Buttons (Zor Kelimeler, Tekrar) */
+.special-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--light-pink);
+}
+
+.special-buttons .session-btn {
+    flex: 1;
+}
+
+@media (max-width: 480px) {
+    .special-buttons {
+        flex-direction: column;
+    }
+}
+
 .btn-icon {
     font-size: 1.5rem;
     margin-right: 12px;
