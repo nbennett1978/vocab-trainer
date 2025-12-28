@@ -7,9 +7,10 @@ const {
     learnerStatsOperations,
     achievementOperations,
     dailyActivityOperations,
-    wordOperations
+    wordOperations,
+    settingsOperations
 } = require('../db/database');
-const { getProgressStats, areAllWordsMastered } = require('../services/leitner');
+const { getProgressStats, areAllWordsMastered, getReviewWordCount } = require('../services/leitner');
 const { startSession, submitAnswer, endSession, getSessionState } = require('../services/session');
 const { getTodayDate, daysSince } = require('../utils/timezone');
 
@@ -21,6 +22,10 @@ router.get('/dashboard', (req, res) => {
         const progressStats = getProgressStats();
         const recentActivity = dailyActivityOperations.getRecent.all(7);
         const wordCount = wordOperations.count.get();
+        const quickLessonCount = parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5');
+        const answerTimeout = parseInt(settingsOperations.get.get('answer_timeout')?.value || '30');
+        const reviewWordCount = getReviewWordCount();
+        const categoryProgress = wordOperations.getCategoryProgress.all();
 
         // Check for inactivity message
         let inactivityMessage = null;
@@ -52,7 +57,11 @@ router.get('/dashboard', (req, res) => {
                 recentActivity,
                 totalWords: wordCount.count,
                 allMastered,
-                inactivityMessage
+                inactivityMessage,
+                quickLessonCount,
+                answerTimeout,
+                reviewWordCount,
+                categoryProgress
             }
         });
     } catch (error) {
@@ -65,9 +74,11 @@ router.get('/dashboard', (req, res) => {
 router.get('/categories', (req, res) => {
     try {
         const categories = wordOperations.getCategories.all();
+        const categoriesWithCounts = wordOperations.getCategoriesWithCounts.all();
         res.json({
             success: true,
-            categories: ['all', ...categories.map(c => c.category)]
+            categories: ['all', ...categories.map(c => c.category)],
+            categoriesWithCounts: categoriesWithCounts
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -80,7 +91,7 @@ router.get('/session/start', (req, res) => {
         const { type = 'quick', category = 'all' } = req.query;
 
         // Validate session type
-        const validTypes = ['quick', 'long', 'review_mastered', 'category'];
+        const validTypes = ['quick', 'weak_words', 'review_mastered', 'category'];
         if (!validTypes.includes(type)) {
             return res.status(400).json({ success: false, error: 'Invalid session type' });
         }

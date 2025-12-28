@@ -29,6 +29,14 @@ body {
     line-height: 1.5;
 }
 
+.hidden {
+    display: none !important;
+}
+
+#upload-new-category {
+    margin-top: 8px;
+}
+
 .admin-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -612,6 +620,17 @@ body {
 .ws-success-detail {
     font-size: 0.75rem;
     color: var(--text-light);
+}
+
+.ws-word-category {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    color: var(--text-light);
+    text-transform: capitalize;
+    min-width: 70px;
+    text-align: center;
 }
 
 /* Responsive */

@@ -17,7 +17,7 @@ const {
     createProgressForWord,
     transaction
 } = require('../db/database');
-const { getProgressStats, getWorkingSetWithStats, getWorkingSetSuccessRate } = require('../services/leitner');
+const { getProgressStats, getWorkingSetWithStats, getWorkingSetSuccessRate, getEntireSetWithStats, getWorkingSetSize } = require('../services/leitner');
 
 // Configure multer for file uploads
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
@@ -233,12 +233,51 @@ router.get('/working-set', (req, res) => {
         const workingSet = getWorkingSetWithStats();
         const overallSuccessRate = Math.round(getWorkingSetSuccessRate() * 100);
 
+        // Sort by success rate (ascending) - words with lowest success first
+        workingSet.sort((a, b) => {
+            // Words with no attempts go to the end
+            if (a.successRatePercent === null && b.successRatePercent === null) return 0;
+            if (a.successRatePercent === null) return 1;
+            if (b.successRatePercent === null) return -1;
+            return a.successRatePercent - b.successRatePercent;
+        });
+
         res.json({
             success: true,
             data: {
                 words: workingSet,
                 count: workingSet.length,
                 overallSuccessRate
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get entire set with stats (all words in database)
+router.get('/entire-set', (req, res) => {
+    try {
+        const entireSet = getEntireSetWithStats();
+        const workingSetSize = getWorkingSetSize();
+        const notStarted = entireSet.filter(w => w.en_to_tr.box === 0 && w.tr_to_en.box === 0).length;
+
+        // Sort by success rate (ascending) - words with lowest success first
+        entireSet.sort((a, b) => {
+            // Words with no attempts go to the end
+            if (a.successRatePercent === null && b.successRatePercent === null) return 0;
+            if (a.successRatePercent === null) return 1;
+            if (b.successRatePercent === null) return -1;
+            return a.successRatePercent - b.successRatePercent;
+        });
+
+        res.json({
+            success: true,
+            data: {
+                words: entireSet,
+                count: entireSet.length,
+                inWorkingSet: workingSetSize,
+                notStarted: notStarted
             }
         });
     } catch (error) {
@@ -323,7 +362,7 @@ router.get('/settings', (req, res) => {
 // Update settings
 router.put('/settings', (req, res) => {
     try {
-        const allowedKeys = ['quick_lesson_count', 'long_lesson_count', 'new_words_per_day', 'mastered_review_chance', 'timezone'];
+        const allowedKeys = ['quick_lesson_count', 'weak_words_count', 'mastered_review_chance', 'timezone', 'answer_timeout'];
 
         for (const [key, value] of Object.entries(req.body)) {
             if (allowedKeys.includes(key)) {

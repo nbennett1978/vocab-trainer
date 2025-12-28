@@ -43,6 +43,15 @@ const wordOperations = {
 
     getCategories: db.prepare('SELECT DISTINCT category FROM words ORDER BY category'),
 
+    getCategoriesWithCounts: db.prepare(`
+        SELECT
+            w.category,
+            COUNT(DISTINCT w.id) as word_count
+        FROM words w
+        GROUP BY w.category
+        ORDER BY w.category
+    `),
+
     insert: db.prepare(`
         INSERT INTO words (english, turkish, category, example_sentence)
         VALUES (@english, @turkish, @category, @example_sentence)
@@ -58,7 +67,21 @@ const wordOperations = {
 
     count: db.prepare('SELECT COUNT(*) as count FROM words'),
 
-    countByCategory: db.prepare('SELECT category, COUNT(*) as count FROM words GROUP BY category')
+    countByCategory: db.prepare('SELECT category, COUNT(*) as count FROM words GROUP BY category'),
+
+    getCategoryProgress: db.prepare(`
+        SELECT
+            w.category,
+            COUNT(DISTINCT w.id) as total_words,
+            COUNT(DISTINCT CASE
+                WHEN p1.leitner_box >= 3 OR p2.leitner_box >= 3 THEN w.id
+            END) as mastered_words
+        FROM words w
+        LEFT JOIN progress p1 ON w.id = p1.word_id AND p1.direction = 'en_to_tr'
+        LEFT JOIN progress p2 ON w.id = p2.word_id AND p2.direction = 'tr_to_en'
+        GROUP BY w.category
+        ORDER BY w.category
+    `)
 };
 
 // Progress operations
@@ -103,6 +126,29 @@ const progressOperations = {
         FROM progress p
         JOIN words w ON p.word_id = w.id
         WHERE p.leitner_box = 5 AND p.direction = ?
+    `),
+
+    getReviewWords: db.prepare(`
+        SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
+        FROM progress p
+        JOIN words w ON p.word_id = w.id
+        WHERE p.leitner_box IN (3, 4, 5) AND p.direction = ?
+    `),
+
+    countReviewWords: db.prepare(`
+        SELECT COUNT(*) as count
+        FROM progress
+        WHERE leitner_box IN (3, 4, 5)
+    `),
+
+    getWeakWords: db.prepare(`
+        SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
+        FROM progress p
+        JOIN words w ON p.word_id = w.id
+        WHERE p.leitner_box IN (1, 2) AND p.direction = ?
+        AND p.last_asked IS NOT NULL
+        ORDER BY p.last_asked DESC
+        LIMIT ?
     `),
 
     insert: db.prepare(`

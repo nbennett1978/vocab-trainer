@@ -1,11 +1,14 @@
 // Vocabulary Trainer - Admin Dashboard
 
 let allWords = [];
+let workingSetWords = [];
+let entireSetWords = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     setupForms();
+    loadCategories();
     loadWords();
     loadWorkingSet();
     loadProgress();
@@ -27,6 +30,7 @@ function setupTabs() {
             // Refresh data when switching tabs
             if (btn.dataset.tab === 'words') loadWords();
             if (btn.dataset.tab === 'working-set') loadWorkingSet();
+            if (btn.dataset.tab === 'entire-set') loadEntireSet();
             if (btn.dataset.tab === 'progress') loadProgress();
             if (btn.dataset.tab === 'settings') loadSettings();
         });
@@ -65,6 +69,72 @@ function setupForms() {
     // Search and filter
     document.getElementById('search-input').addEventListener('input', filterWords);
     document.getElementById('filter-category').addEventListener('change', filterWords);
+
+    // New category toggle for bulk upload
+    document.getElementById('upload-category').addEventListener('change', (e) => {
+        const newCategoryInput = document.getElementById('upload-new-category');
+        if (e.target.value === '__new__') {
+            newCategoryInput.classList.remove('hidden');
+            newCategoryInput.focus();
+        } else {
+            newCategoryInput.classList.add('hidden');
+            newCategoryInput.value = '';
+        }
+    });
+
+    // Working set category filter
+    document.getElementById('ws-filter-category').addEventListener('change', filterWorkingSet);
+
+    // Entire set category filter
+    document.getElementById('es-filter-category').addEventListener('change', filterEntireSet);
+}
+
+// Load categories from server
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+
+        if (data.success) {
+            const categories = data.categories.filter(c => c !== 'all');
+
+            // Update upload category dropdown
+            const uploadSelect = document.getElementById('upload-category');
+            const currentUploadOptions = `
+                <option value="">Auto-detect from filename</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+                <option value="__new__">+ New category...</option>
+            `;
+            uploadSelect.innerHTML = currentUploadOptions;
+
+            // Update filter category dropdown
+            const filterSelect = document.getElementById('filter-category');
+            filterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+
+            // Update working set filter dropdown
+            const wsFilterSelect = document.getElementById('ws-filter-category');
+            wsFilterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+
+            // Update entire set filter dropdown
+            const esFilterSelect = document.getElementById('es-filter-category');
+            esFilterSelect.innerHTML = `
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat}">${capitalize(cat)}</option>`).join('')}
+            `;
+        }
+    } catch (error) {
+        console.error('Load categories error:', error);
+    }
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Load words
@@ -120,17 +190,27 @@ async function loadWorkingSet() {
 
         if (data.success) {
             const { words, count, overallSuccessRate } = data.data;
+            workingSetWords = words;
 
             // Update stats
             document.getElementById('ws-count').textContent = count;
             document.getElementById('ws-success-rate').textContent = `${overallSuccessRate}%`;
 
-            // Render working set list
-            renderWorkingSet(words);
+            // Render working set list (apply current filter)
+            filterWorkingSet();
         }
     } catch (error) {
         console.error('Load working set error:', error);
     }
+}
+
+// Filter working set
+function filterWorkingSet() {
+    const category = document.getElementById('ws-filter-category').value;
+    const filtered = category
+        ? workingSetWords.filter(w => w.category === category)
+        : workingSetWords;
+    renderWorkingSet(filtered);
 }
 
 // Render working set
@@ -142,33 +222,81 @@ function renderWorkingSet(words) {
         return;
     }
 
-    container.innerHTML = words.map(word => {
-        const successClass = word.successRatePercent === null ? ''
-            : word.successRatePercent >= 60 ? 'good'
-            : word.successRatePercent >= 40 ? 'medium'
-            : 'bad';
+    container.innerHTML = words.map(word => renderWordItem(word)).join('');
+}
 
-        return `
-            <div class="ws-word-item">
-                <div class="ws-word-main">
-                    <div class="ws-word-english">${escapeHtml(word.english)}</div>
-                    <div class="ws-word-turkish">${escapeHtml(word.turkish)}</div>
+// Load entire set
+async function loadEntireSet() {
+    try {
+        const response = await fetch('/admin/api/entire-set');
+        const data = await response.json();
+
+        if (data.success) {
+            const { words, count, inWorkingSet, notStarted } = data.data;
+            entireSetWords = words;
+
+            // Update stats
+            document.getElementById('es-count').textContent = count;
+            document.getElementById('es-in-working-set').textContent = inWorkingSet;
+            document.getElementById('es-not-started').textContent = notStarted;
+
+            // Render entire set list (apply current filter)
+            filterEntireSet();
+        }
+    } catch (error) {
+        console.error('Load entire set error:', error);
+    }
+}
+
+// Filter entire set
+function filterEntireSet() {
+    const category = document.getElementById('es-filter-category').value;
+    const filtered = category
+        ? entireSetWords.filter(w => w.category === category)
+        : entireSetWords;
+    renderEntireSet(filtered);
+}
+
+// Render entire set
+function renderEntireSet(words) {
+    const container = document.getElementById('entire-set-list');
+
+    if (words.length === 0) {
+        container.innerHTML = '<p class="loading">No words in database yet.</p>';
+        return;
+    }
+
+    container.innerHTML = words.map(word => renderWordItem(word)).join('');
+}
+
+// Shared render function for word items
+function renderWordItem(word) {
+    const successClass = word.successRatePercent === null ? ''
+        : word.successRatePercent >= 60 ? 'good'
+        : word.successRatePercent >= 40 ? 'medium'
+        : 'bad';
+
+    return `
+        <div class="ws-word-item">
+            <div class="ws-word-main">
+                <div class="ws-word-english">${escapeHtml(word.english)}</div>
+                <div class="ws-word-turkish">${escapeHtml(word.turkish)}</div>
+            </div>
+            <span class="ws-word-category">${word.category}</span>
+            <div class="ws-word-boxes">
+                <span class="ws-box box-${word.en_to_tr.box}">EN→TR: Box ${word.en_to_tr.box}</span>
+                <span class="ws-box box-${word.tr_to_en.box}">TR→EN: Box ${word.tr_to_en.box}</span>
+            </div>
+            <div class="ws-success-rate">
+                <div class="ws-success-value ${successClass}">
+                    ${word.successRatePercent !== null ? word.successRatePercent + '%' : '-'}
                 </div>
-                <div class="ws-word-boxes">
-                    <span class="ws-box box-${word.en_to_tr.box}">EN→TR: Box ${word.en_to_tr.box}</span>
-                    <span class="ws-box box-${word.tr_to_en.box}">TR→EN: Box ${word.tr_to_en.box}</span>
-                </div>
-                <div class="ws-success-rate">
-                    <div class="ws-success-value ${successClass}">
-                        ${word.successRatePercent !== null ? word.successRatePercent + '%' : '-'}
-                    </div>
-                    <div class="ws-success-detail">
-                        ${word.totalCorrect}/${word.totalAsked}
-                    </div>
+                <div class="ws-success-detail">
+                    ${word.totalCorrect}/${word.totalAsked}
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+    `;
 }
 
 // Filter words
@@ -222,8 +350,19 @@ async function addWord() {
 // Upload file
 async function uploadFile() {
     const fileInput = document.getElementById('upload-file');
-    const category = document.getElementById('upload-category').value;
+    let category = document.getElementById('upload-category').value;
+    const newCategoryInput = document.getElementById('upload-new-category');
     const resultsDiv = document.getElementById('upload-results');
+
+    // Handle new category
+    if (category === '__new__') {
+        category = newCategoryInput.value.trim().toLowerCase();
+        if (!category) {
+            alert('Please enter a category name');
+            newCategoryInput.focus();
+            return;
+        }
+    }
 
     if (!fileInput.files[0]) {
         alert('Please select a file');
@@ -253,6 +392,8 @@ async function uploadFile() {
                 ${data.results.errors.length > 0 ? `Errors: ${data.results.errors.length}` : ''}
             `;
             document.getElementById('upload-form').reset();
+            document.getElementById('upload-new-category').classList.add('hidden');
+            loadCategories();
             loadWords();
         } else {
             resultsDiv.classList.add('error');
@@ -488,9 +629,9 @@ async function loadSettings() {
         if (data.success) {
             const s = data.settings;
             document.getElementById('setting-quick').value = s.quick_lesson_count || 5;
-            document.getElementById('setting-long').value = s.long_lesson_count || 15;
-            document.getElementById('setting-new-words').value = s.new_words_per_day || 5;
+            document.getElementById('setting-weak-words').value = s.weak_words_count || 5;
             document.getElementById('setting-review-chance').value = s.mastered_review_chance || 0.1;
+            document.getElementById('setting-answer-timeout').value = s.answer_timeout || 30;
             document.getElementById('setting-timezone').value = s.timezone || 'Europe/Istanbul';
         }
     } catch (error) {
@@ -502,9 +643,9 @@ async function loadSettings() {
 async function saveSettings() {
     const settings = {
         quick_lesson_count: document.getElementById('setting-quick').value,
-        long_lesson_count: document.getElementById('setting-long').value,
-        new_words_per_day: document.getElementById('setting-new-words').value,
+        weak_words_count: document.getElementById('setting-weak-words').value,
         mastered_review_chance: document.getElementById('setting-review-chance').value,
+        answer_timeout: document.getElementById('setting-answer-timeout').value,
         timezone: document.getElementById('setting-timezone').value
     };
 

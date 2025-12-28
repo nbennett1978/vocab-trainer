@@ -90,13 +90,39 @@ function getWorkingSetWithStats() {
         LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
         LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
         WHERE p_en.leitner_box > 0 OR p_tr.leitner_box > 0
-        ORDER BY
-            CASE WHEN p_en.leitner_box > 0 AND p_tr.leitner_box > 0 THEN 0 ELSE 1 END,
-            (COALESCE(p_en.leitner_box, 0) + COALESCE(p_tr.leitner_box, 0)) ASC
     `);
 
     const words = query.all();
 
+    return formatWordsWithStats(words);
+}
+
+// Get ALL words with success rate details for admin view (entire set)
+function getEntireSetWithStats() {
+    const query = db.prepare(`
+        SELECT
+            w.id,
+            w.english,
+            w.turkish,
+            w.category,
+            p_en.leitner_box as en_to_tr_box,
+            p_en.times_asked as en_to_tr_asked,
+            p_en.times_correct as en_to_tr_correct,
+            p_tr.leitner_box as tr_to_en_box,
+            p_tr.times_asked as tr_to_en_asked,
+            p_tr.times_correct as tr_to_en_correct
+        FROM words w
+        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
+        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
+    `);
+
+    const words = query.all();
+
+    return formatWordsWithStats(words);
+}
+
+// Helper function to format words with stats
+function formatWordsWithStats(words) {
     return words.map(w => {
         const totalAsked = (w.en_to_tr_asked || 0) + (w.tr_to_en_asked || 0);
         const totalCorrect = (w.en_to_tr_correct || 0) + (w.tr_to_en_correct || 0);
@@ -181,14 +207,20 @@ function shouldExpandWorkingSet() {
 
 // Select words for a session
 function selectWordsForSession(sessionType, categoryFilter, direction) {
+    const quickSetting = settingsOperations.get.get('quick_lesson_count');
+    const weakSetting = settingsOperations.get.get('weak_words_count');
+
+    console.log('Settings from DB:', { quick: quickSetting, weak: weakSetting });
+
     const settings = {
-        quick: parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5'),
-        long: parseInt(settingsOperations.get.get('long_lesson_count')?.value || '15'),
+        quick: parseInt(quickSetting?.value || '5'),
+        weak_words: parseInt(weakSetting?.value || '5'),
         review_mastered: 10,
-        category: parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5')
+        category: parseInt(quickSetting?.value || '5')
     };
 
     const targetCount = settings[sessionType] || 5;
+    console.log(`Session type: ${sessionType}, Target count: ${targetCount}`);
     const masteredReviewChance = parseFloat(settingsOperations.get.get('mastered_review_chance')?.value || '0.1');
 
     // Check if we need to initialize or expand working set
@@ -203,11 +235,24 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
     let selectedWords = [];
 
-    if (sessionType === 'review_mastered') {
-        // Only get mastered words
-        const masteredWords = progressOperations.getMasteredWords.all(direction);
+    if (sessionType === 'weak_words') {
+        // Get the last N weak words (in box 1-2, recently asked)
+        const weakWords = progressOperations.getWeakWords.all(direction, targetCount);
+        selectedWords = weakWords;
+
+        // If not enough weak words, fill with box 1-3 words
+        if (selectedWords.length < targetCount) {
+            let dueWords = progressOperations.getWordsDueForReview.all(direction);
+            dueWords = dueWords.filter(w => !selectedWords.find(s => s.id === w.id));
+            dueWords.sort((a, b) => a.leitner_box - b.leitner_box);
+            selectedWords = selectedWords.concat(dueWords.slice(0, targetCount - selectedWords.length));
+        }
+    } else if (sessionType === 'review_mastered') {
+        // Get words from boxes 3-5 (well-learned words for review)
+        const reviewWords = progressOperations.getReviewWords.all(direction);
         // Shuffle and take target count
-        selectedWords = shuffleArray(masteredWords).slice(0, targetCount);
+        selectedWords = shuffleArray(reviewWords).slice(0, targetCount);
+        console.log(`Review words found: ${reviewWords.length}, selected: ${selectedWords.length}`);
     } else {
         // Get words from the working set (box 1-5) that are due for review
         let dueWords = progressOperations.getWordsDueForReview.all(direction);
@@ -228,22 +273,40 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
         // Take words that are due
         selectedWords = dueWords.slice(0, targetCount);
+        console.log(`Due words found: ${dueWords.length}, selected: ${selectedWords.length}`);
 
-        // If we still need more words and success rate is good, add from box 0
+        // If not enough due words, get ANY words from working set (box 1-5)
         if (selectedWords.length < targetCount) {
-            const successRate = getWorkingSetSuccessRate();
+            let allWorkingSetWords = getWorkingSet(direction);
 
-            if (successRate >= SUCCESS_RATE_THRESHOLD || getWorkingSetSize() === 0) {
-                let newWords = progressOperations.getNewWords.all(direction);
-
-                // Filter by category if needed
-                if (categoryFilter && categoryFilter !== 'all') {
-                    newWords = newWords.filter(w => w.category === categoryFilter);
-                }
-
-                const wordsToAdd = newWords.slice(0, targetCount - selectedWords.length);
-                selectedWords = selectedWords.concat(wordsToAdd);
+            // Filter by category if needed
+            if (categoryFilter && categoryFilter !== 'all') {
+                allWorkingSetWords = allWorkingSetWords.filter(w => w.category === categoryFilter);
             }
+
+            // Filter out already selected words
+            allWorkingSetWords = allWorkingSetWords.filter(w =>
+                !selectedWords.find(s => s.id === w.id)
+            );
+
+            // Add more words from working set
+            const moreWords = allWorkingSetWords.slice(0, targetCount - selectedWords.length);
+            selectedWords = selectedWords.concat(moreWords);
+            console.log(`Added ${moreWords.length} more words from working set`);
+        }
+
+        // If STILL not enough, add new words from box 0
+        if (selectedWords.length < targetCount) {
+            let newWords = progressOperations.getNewWords.all(direction);
+
+            // Filter by category if needed
+            if (categoryFilter && categoryFilter !== 'all') {
+                newWords = newWords.filter(w => w.category === categoryFilter);
+            }
+
+            const wordsToAdd = newWords.slice(0, targetCount - selectedWords.length);
+            selectedWords = selectedWords.concat(wordsToAdd);
+            console.log(`Added ${wordsToAdd.length} new words from box 0`);
         }
 
         // Optionally add 1 mastered word for review
@@ -265,6 +328,7 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
     }
 
     // Shuffle the final selection
+    console.log(`Selected ${selectedWords.length} words for session (target was ${targetCount})`);
     return shuffleArray(selectedWords);
 }
 
@@ -321,6 +385,12 @@ function areAllWordsMastered() {
     return stats.totalWords > 0 && stats.fullyMastered === stats.totalWords;
 }
 
+// Get count of review words (boxes 3-5)
+function getReviewWordCount() {
+    const result = progressOperations.countReviewWords.get();
+    return result?.count || 0;
+}
+
 module.exports = {
     BOX_INTERVALS,
     INITIAL_WORKING_SET_SIZE,
@@ -330,11 +400,13 @@ module.exports = {
     getWorkingSetSize,
     getWorkingSetSuccessRate,
     getWorkingSetWithStats,
+    getEntireSetWithStats,
     initializeWorkingSet,
     expandWorkingSet,
     shouldExpandWorkingSet,
     selectWordsForSession,
     shuffleArray,
     getProgressStats,
-    areAllWordsMastered
+    areAllWordsMastered,
+    getReviewWordCount
 };

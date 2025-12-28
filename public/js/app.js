@@ -5,6 +5,13 @@ let currentSession = null;
 let isRetryMode = false;
 let currentWordData = null;
 let isPopupOpen = false;
+let lastSessionType = 'category';
+let lastSessionCategory = 'all';
+
+// Timer state
+let answerTimeout = 30; // Default, will be loaded from settings
+let timerInterval = null;
+let timeRemaining = 0;
 
 // DOM Elements
 const screens = {
@@ -22,14 +29,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Session buttons
-    document.querySelectorAll('.session-btn').forEach(btn => {
-        btn.addEventListener('click', () => startSession(btn.dataset.type));
+    // Special session buttons (weak_words, review_mastered)
+    document.querySelectorAll('.special-buttons .session-btn').forEach(btn => {
+        btn.addEventListener('click', () => startSession(btn.dataset.type, 'all'));
     });
 
     // Back button
     document.getElementById('back-btn').addEventListener('click', () => {
         if (confirm('Dersi bitirmek istediğinden emin misin?')) {
+            stopTimer();
             showScreen('dashboard');
             loadDashboard();
         }
@@ -51,6 +59,12 @@ function setupEventListeners() {
     // Submit button
     document.getElementById('submit-btn').addEventListener('click', submitAnswer);
 
+    // Don't Know button
+    document.getElementById('dont-know-btn').addEventListener('click', handleDontKnow);
+
+    // Close popup button
+    document.getElementById('close-popup-btn').addEventListener('click', closeWrongPopup);
+
     // Next button
     document.getElementById('next-btn').addEventListener('click', nextWord);
 
@@ -58,6 +72,11 @@ function setupEventListeners() {
     document.getElementById('back-to-dashboard').addEventListener('click', () => {
         showScreen('dashboard');
         loadDashboard();
+    });
+
+    // Another lesson button
+    document.getElementById('another-lesson').addEventListener('click', () => {
+        startSession(lastSessionType, lastSessionCategory);
     });
 }
 
@@ -83,11 +102,29 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, achievements, totalWords, allMastered, inactivityMessage } = data.data;
+        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress, answerTimeout: timeout } = data.data;
+
+        // Store answer timeout setting
+        if (timeout) {
+            answerTimeout = timeout;
+        }
 
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
         document.getElementById('current-streak').textContent = stats.currentStreak;
+
+        // Enable/disable review button based on available words (boxes 3-5)
+        const reviewBtn = document.querySelector('.review-btn');
+        const reviewBtnDesc = reviewBtn.querySelector('.btn-desc');
+        if (reviewWordCount > 0) {
+            reviewBtn.disabled = false;
+            reviewBtn.classList.remove('disabled');
+            reviewBtnDesc.textContent = 'Kutu 3-5';
+        } else {
+            reviewBtn.disabled = true;
+            reviewBtn.classList.add('disabled');
+            reviewBtnDesc.textContent = 'Kelime yok';
+        }
 
         // Update Leitner boxes
         const enToTr = progress.byDirection.en_to_tr;
@@ -111,15 +148,11 @@ async function loadDashboard() {
             inactivityEl.classList.add('hidden');
         }
 
-        // Update achievements
-        const achievementsList = document.getElementById('achievements-list');
-        if (achievements.length > 0) {
-            achievementsList.innerHTML = achievements.map(a =>
-                `<span class="achievement-badge">${getAchievementEmoji(a.type)} ${getAchievementLabel(a.type)}</span>`
-            ).join('');
-        } else {
-            achievementsList.innerHTML = '<p class="no-achievements">Yeni şeyler öğrenmek için harika bir gün! 🌸✨</p>';
-        }
+        // Render weekly activity tracker
+        renderWeeklyTracker(recentActivity || []);
+
+        // Render category evaluation
+        renderCategoryProgress(categoryProgress || []);
 
         // Load categories
         await loadCategories();
@@ -139,28 +172,63 @@ async function loadDashboard() {
     }
 }
 
-// Load categories
+// Load categories and render buttons
 async function loadCategories() {
     try {
         const response = await fetch('/api/categories');
         const data = await response.json();
 
-        if (data.success) {
-            const select = document.getElementById('category-select');
-            select.innerHTML = data.categories.map(cat =>
-                `<option value="${cat}">${cat === 'all' ? 'Tümü' : capitalizeFirst(cat)}</option>`
-            ).join('');
+        if (data.success && data.categoriesWithCounts) {
+            renderCategoryButtons(data.categoriesWithCounts);
         }
     } catch (error) {
         console.error('Categories load error:', error);
     }
 }
 
+// Render category buttons
+function renderCategoryButtons(categories) {
+    const container = document.getElementById('category-buttons');
+
+    if (!categories || categories.length === 0) {
+        container.innerHTML = '<p class="no-data">Henüz kategori yok</p>';
+        return;
+    }
+
+    // Calculate total word count
+    const totalWords = categories.reduce((sum, cat) => sum + cat.word_count, 0);
+
+    // Add "All Categories" button first, then individual category buttons
+    const allCategoriesBtn = `
+        <button class="category-btn all-categories-btn" data-category="all">
+            <span class="cat-name">Tümü</span>
+            <span class="cat-count">${totalWords} kelime</span>
+        </button>
+    `;
+
+    const categoryBtns = categories.map(cat => `
+        <button class="category-btn" data-category="${cat.category}">
+            <span class="cat-name">${capitalizeFirst(cat.category)}</span>
+            <span class="cat-count">${cat.word_count} kelime</span>
+        </button>
+    `).join('');
+
+    container.innerHTML = allCategoriesBtn + categoryBtns;
+
+    // Add click handlers
+    container.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            startSession('category', btn.dataset.category);
+        });
+    });
+}
+
 // Start a training session
-async function startSession(type) {
+async function startSession(type, category = 'all') {
     setLoading(true);
+    lastSessionType = type;
+    lastSessionCategory = category;
     try {
-        const category = document.getElementById('category-select').value;
         const response = await fetch(`/api/session/start?type=${type}&category=${category}`);
         const data = await response.json();
 
@@ -242,13 +310,114 @@ function displayWord(wordData) {
     document.getElementById('answer-input').value = '';
     document.getElementById('answer-input').disabled = false;
     document.getElementById('submit-btn').disabled = false;
+    document.getElementById('dont-know-btn').disabled = false;
     document.getElementById('feedback').classList.add('hidden');
     document.getElementById('correct-answer').classList.add('hidden');
     document.getElementById('next-btn').classList.add('hidden');
     isRetryMode = false;
 
+    // Start countdown timer
+    startTimer();
+
     // Focus input
     document.getElementById('answer-input').focus();
+}
+
+// Timer functions
+function startTimer() {
+    // Clear any existing timer
+    stopTimer();
+
+    // Initialize timer
+    timeRemaining = answerTimeout;
+    updateTimerDisplay();
+
+    // Start countdown
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+
+        if (timeRemaining <= 0) {
+            handleTimeUp();
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function updateTimerDisplay() {
+    const timerEl = document.getElementById('countdown-timer');
+    const timerValue = document.getElementById('timer-value');
+    timerValue.textContent = timeRemaining;
+
+    // Update timer styling based on time remaining
+    timerEl.classList.remove('warning', 'danger');
+    if (timeRemaining <= 5) {
+        timerEl.classList.add('danger');
+    } else if (timeRemaining <= 10) {
+        timerEl.classList.add('warning');
+    }
+}
+
+function handleTimeUp() {
+    stopTimer();
+    // Treat as "don't know" - submit empty answer to mark as incorrect
+    handleDontKnow();
+}
+
+// Handle "Don't Know" button click
+async function handleDontKnow() {
+    stopTimer();
+
+    // Disable inputs
+    document.getElementById('answer-input').disabled = true;
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('dont-know-btn').disabled = true;
+
+    try {
+        // Submit empty answer to mark as incorrect
+        const response = await fetch('/api/session/answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId: currentSession.id,
+                answer: '',
+                isRetry: false
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error);
+        }
+
+        // Update stars
+        currentSession.stars = data.starsEarned;
+        document.getElementById('session-stars').textContent = data.starsEarned;
+
+        // Show incorrect feedback
+        const feedbackEl = document.getElementById('feedback');
+        feedbackEl.classList.remove('hidden', 'correct', 'incorrect', 'almost');
+        feedbackEl.classList.add('incorrect');
+        feedbackEl.querySelector('.feedback-text').textContent = 'Bilmiyorum 😢';
+
+        // Store next word data
+        currentSession.nextWord = data.nextWord;
+        currentSession.isComplete = data.isComplete;
+
+        // Show popup with both words
+        showWrongPopup(currentWordData.english, currentWordData.turkish);
+
+    } catch (error) {
+        console.error('Dont know error:', error);
+        alert('Bir hata oluştu: ' + error.message);
+    }
 }
 
 // Submit answer
@@ -260,6 +429,9 @@ async function submitAnswer() {
         input.focus();
         return;
     }
+
+    // Stop the timer
+    stopTimer();
 
     try {
         const response = await fetch('/api/session/answer', {
@@ -298,22 +470,31 @@ async function submitAnswer() {
         // Disable input
         input.disabled = true;
         document.getElementById('submit-btn').disabled = true;
+        document.getElementById('dont-know-btn').disabled = true;
 
         if (data.result === 'correct') {
             feedbackEl.classList.add('correct');
             feedbackEl.querySelector('.feedback-text').textContent = 'Doğru! 🎉';
             createSparkle();
 
+            // Store next word data
+            currentSession.nextWord = data.nextWord;
+
             // Check if session is complete
             if (data.isComplete) {
                 setTimeout(() => endSession(), 1500);
             } else {
-                // Show next button
+                // Show next button (user can click immediately or wait for auto-advance)
                 document.getElementById('next-btn').classList.remove('hidden');
                 document.getElementById('next-btn').focus();
 
-                // Store next word data
-                currentSession.nextWord = data.nextWord;
+                // Auto-advance to next word after 3 seconds
+                setTimeout(() => {
+                    // Only advance if we haven't already moved on
+                    if (currentSession && currentSession.nextWord) {
+                        nextWord();
+                    }
+                }, 3000);
             }
         } else {
             // Wrong answer - show popup
@@ -345,6 +526,7 @@ function nextWord() {
 
 // End session
 async function endSession() {
+    stopTimer();
     try {
         const response = await fetch('/api/session/end', {
             method: 'POST',
@@ -449,10 +631,110 @@ function closeWrongPopup() {
     if (currentSession.isComplete) {
         setTimeout(() => endSession(), 500);
     } else {
-        // Show next button
-        document.getElementById('next-btn').classList.remove('hidden');
-        document.getElementById('next-btn').focus();
+        // Automatically advance to next word
+        nextWord();
     }
+}
+
+// Render category progress evaluation
+function renderCategoryProgress(categoryProgress) {
+    const container = document.getElementById('category-progress');
+
+    if (!categoryProgress || categoryProgress.length === 0) {
+        container.innerHTML = '<p class="no-data">Henüz kelime yok</p>';
+        return;
+    }
+
+    // Calculate totals
+    const totals = categoryProgress.reduce((acc, cat) => {
+        acc.total += cat.total_words;
+        acc.mastered += cat.mastered_words;
+        return acc;
+    }, { total: 0, mastered: 0 });
+
+    // Render category rows
+    const rows = categoryProgress.map(cat => {
+        const percentage = cat.total_words > 0 ? Math.round((cat.mastered_words / cat.total_words) * 100) : 0;
+        return `
+            <div class="category-row">
+                <span class="category-name">${capitalizeFirst(cat.category)}</span>
+                <div class="category-bar-container">
+                    <div class="category-bar" style="width: ${percentage}%"></div>
+                </div>
+                <span class="category-stats">${cat.mastered_words} / ${cat.total_words}</span>
+            </div>
+        `;
+    }).join('');
+
+    // Add total row
+    const totalPercentage = totals.total > 0 ? Math.round((totals.mastered / totals.total) * 100) : 0;
+    const totalRow = `
+        <div class="category-row total-row">
+            <span class="category-name">Toplam</span>
+            <div class="category-bar-container">
+                <div class="category-bar" style="width: ${totalPercentage}%"></div>
+            </div>
+            <span class="category-stats">${totals.mastered} / ${totals.total}</span>
+        </div>
+    `;
+
+    container.innerHTML = rows + totalRow;
+}
+
+// Helper to get date string in GMT+3 (Europe/Istanbul)
+function getDateInIstanbul(date) {
+    return date.toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+}
+
+// Helper to get day of week in GMT+3
+function getDayOfWeekInIstanbul(date) {
+    return parseInt(date.toLocaleDateString('en-US', { timeZone: 'Europe/Istanbul', weekday: 'numeric' })) % 7;
+}
+
+// Render weekly activity tracker
+function renderWeeklyTracker(recentActivity) {
+    const container = document.getElementById('weekly-boxes');
+    const dayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+
+    // Get last 7 days (today is rightmost) - using GMT+3 timezone
+    const days = [];
+    const now = new Date();
+    const todayStr = getDateInIstanbul(now);
+
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = getDateInIstanbul(date);
+        const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
+
+        // Find activity for this date
+        const activity = recentActivity.find(a => a.date === dateStr);
+        const sessions = activity ? activity.sessions_completed : 0;
+
+        days.push({
+            name: dayNames[dayOfWeek],
+            date: dateStr,
+            sessions: sessions,
+            isToday: i === 0
+        });
+    }
+
+    container.innerHTML = days.map(day => {
+        const stars = day.sessions === 0 ? ''
+            : day.sessions === 1 ? '⭐'
+            : '⭐⭐';
+        const classes = ['day-box'];
+        if (day.isToday) classes.push('today');
+        if (day.sessions > 0) classes.push('has-activity');
+
+        return `
+            <div class="${classes.join(' ')}">
+                <div class="day-name">${day.name}</div>
+                <div class="day-stars">${stars || '·'}</div>
+                <div class="day-count">${day.sessions > 0 ? day.sessions + ' ders' : ''}</div>
+            </div>
+        `;
+    }).join('');
 }
 
 // Helper functions
