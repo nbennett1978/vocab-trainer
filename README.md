@@ -23,6 +23,13 @@ A web-based Turkish-English vocabulary learning app using the **Leitner spaced r
 - **Mobile-friendly** - Works on any device
 
 ---
+## Screenshots
+
+![Screenshot 1](pictures/screenshot1.png)
+
+
+![Screenshot 2](pictures/screenshot2.png)
+
 
 ## Deployment Guide
 
