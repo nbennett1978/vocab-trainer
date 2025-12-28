@@ -62,6 +62,9 @@ function setupEventListeners() {
     // Don't Know button
     document.getElementById('dont-know-btn').addEventListener('click', handleDontKnow);
 
+    // Close popup button
+    document.getElementById('close-popup-btn').addEventListener('click', closeWrongPopup);
+
     // Next button
     document.getElementById('next-btn').addEventListener('click', nextWord);
 
@@ -474,16 +477,24 @@ async function submitAnswer() {
             feedbackEl.querySelector('.feedback-text').textContent = 'Doğru! 🎉';
             createSparkle();
 
+            // Store next word data
+            currentSession.nextWord = data.nextWord;
+
             // Check if session is complete
             if (data.isComplete) {
                 setTimeout(() => endSession(), 1500);
             } else {
-                // Show next button
+                // Show next button (user can click immediately or wait for auto-advance)
                 document.getElementById('next-btn').classList.remove('hidden');
                 document.getElementById('next-btn').focus();
 
-                // Store next word data
-                currentSession.nextWord = data.nextWord;
+                // Auto-advance to next word after 3 seconds
+                setTimeout(() => {
+                    // Only advance if we haven't already moved on
+                    if (currentSession && currentSession.nextWord) {
+                        nextWord();
+                    }
+                }, 3000);
             }
         } else {
             // Wrong answer - show popup
@@ -620,9 +631,8 @@ function closeWrongPopup() {
     if (currentSession.isComplete) {
         setTimeout(() => endSession(), 500);
     } else {
-        // Show next button
-        document.getElementById('next-btn').classList.remove('hidden');
-        document.getElementById('next-btn').focus();
+        // Automatically advance to next word
+        nextWord();
     }
 }
 

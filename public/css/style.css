@@ -1199,3 +1199,22 @@ body {
     font-size: 0.9rem;
     margin-top: 8px;
 }
+
+.close-popup-btn {
+    margin-top: 16px;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, var(--primary-pink) 0%, var(--purple) 100%);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.close-popup-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
