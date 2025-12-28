@@ -16,10 +16,11 @@ function normalizeTurkish(str) {
     return str.split('').map(char => TURKISH_CHAR_MAP[char] || char).join('');
 }
 
-// Normalize string for comparison (lowercase + Turkish normalization)
+// Normalize string for comparison (lowercase + Turkish normalization + collapse spaces)
 function normalizeForComparison(str) {
     if (!str) return '';
-    return normalizeTurkish(str.toLowerCase().trim());
+    // Lowercase, trim, normalize Turkish chars, and collapse multiple spaces to single space
+    return normalizeTurkish(str.toLowerCase().trim()).replace(/\s+/g, ' ');
 }
 
 // Strip "to " prefix from verbs
