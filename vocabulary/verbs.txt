@@ -1,0 +1,50 @@
+to be # olmak # I want to {be} a doctor when I grow up.
+to have # sahip olmak # I {have} two brothers and one sister.
+to do # yapmak # What do you {do} after school?
+to say # söylemek # Can you {say} that again please?
+to go # gitmek # I {go} to school every morning.
+to get # almak # I need to {get} my books from my locker.
+to make # yapmak # Let's {make} a cake for her birthday.
+to know # bilmek # I {know} the answer to this question.
+to think # düşünmek # I {think} this movie is really good.
+to take # almak # Please {take} your umbrella with you.
+to see # görmek # I can {see} the mountains from my window.
+to come # gelmek # Can you {come} to my party on Saturday?
+to want # istemek # I {want} to learn how to play guitar.
+to use # kullanmak # You can {use} my computer if you need it.
+to find # bulmak # I cannot {find} my keys anywhere.
+to give # vermek # Please {give} me a glass of water.
+to tell # söylemek # Can you {tell} me where the library is?
+to work # çalışmak # My dad has to {work} late tonight.
+to call # aramak # I will {call} you when I get home.
+to try # denemek # You should {try} this delicious cake.
+to ask # sormak # May I {ask} you a question?
+to need # ihtiyaç duymak # I {need} help with my homework.
+to feel # hissetmek # I {feel} happy when I listen to music.
+to become # olmak # She wants to {become} a famous singer.
+to leave # ayrılmak # We have to {leave} early tomorrow morning.
+to put # koymak # Please {put} your books on the table.
+to mean # anlamına gelmek # What does this word {mean}?
+to keep # tutmak # You can {keep} this book if you like it.
+to let # izin vermek # My parents {let} me stay up late on weekends.
+to begin # başlamak # The movie will {begin} at eight o'clock.
+to seem # görünmek # You {seem} tired today.
+to help # yardım etmek # Can you {help} me carry these bags?
+to show # göstermek # Let me {show} you my new phone.
+to hear # duymak # I can {hear} the birds singing outside.
+to play # oynamak # Do you want to {play} basketball with us?
+to run # koşmak # I {run} in the park every morning.
+to move # hareket etmek # We will {move} to a new house next month.
+to live # yaşamak # I {live} in a small town near the sea.
+to believe # inanmak # I {believe} you can do it!
+to bring # getirmek # Don't forget to {bring} your homework tomorrow.
+to happen # olmak # What will {happen} if it rains tomorrow?
+to write # yazmak # I like to {write} stories in my free time.
+to sit # oturmak # Please {sit} down and make yourself comfortable.
+to stand # ayakta durmak # We had to {stand} in line for an hour.
+to lose # kaybetmek # Don't {lose} your wallet again!
+to pay # ödemek # I need to {pay} for this book.
+to meet # tanışmak # I want you to {meet} my best friend.
+to include # içermek # The price does not {include} breakfast.
+to continue # devam etmek # Let's {continue} this conversation later.
+to set # ayarlamak # Don't forget to {set} your alarm clock.

@@ -1,0 +1,100 @@
+time # zaman # I don't have enough {time} to finish this.
+person # kişi # She is a very kind {person}.
+year # yıl # This {year} went by so fast.
+way # yol # This is the best {way} to learn English.
+day # gün # What a beautiful {day} it is today!
+thing # şey # What is that {thing} on the table?
+man # adam # The {man} in the blue shirt is my uncle.
+world # dünya # I want to travel around the {world}.
+life # hayat # {Life} is full of surprises.
+hand # el # Please raise your {hand} if you know the answer.
+part # parça # This is my favorite {part} of the movie.
+child # çocuk # The {child} is playing in the garden.
+eye # göz # She has beautiful blue {eye}s.
+woman # kadın # The {woman} at the shop was very helpful.
+place # yer # This is my favorite {place} in the city.
+work # iş # I have a lot of {work} to do today.
+week # hafta # I will see you next {week}.
+case # durum # In that {case}, let's go together.
+point # nokta # I don't understand your {point}.
+government # hükümet # The {government} made a new law.
+company # şirket # My mom works for a big {company}.
+number # sayı # What is your phone {number}?
+group # grup # We work in a {group} of five students.
+problem # problem # I have a {problem} with my computer.
+fact # gerçek # It is a {fact} that the Earth is round.
+water # su # Can I have a glass of {water} please?
+room # oda # My {room} is on the second floor.
+money # para # I saved my {money} to buy a new phone.
+story # hikaye # My grandmother tells the best {story}.
+family # aile # I love spending time with my {family}.
+friend # arkadaş # She is my best {friend} from school.
+house # ev # We live in a big {house} with a garden.
+month # ay # My birthday is next {month}.
+name # isim # What is your {name}?
+question # soru # Can I ask you a {question}?
+school # okul # I walk to {school} every day.
+student # öğrenci # Every {student} must do their homework.
+system # sistem # The computer {system} is not working.
+program # program # This TV {program} is very funny.
+city # şehir # Istanbul is a very big {city}.
+country # ülke # Turkey is a beautiful {country}.
+door # kapı # Please close the {door} behind you.
+home # ev # I can't wait to go {home}.
+night # gece # The stars are beautiful at {night}.
+head # baş # I have a {head}ache today.
+book # kitap # I am reading an interesting {book}.
+word # kelime # I learned a new {word} today.
+side # yan # Please walk on the right {side} of the road.
+food # yemek # The {food} at this restaurant is delicious.
+table # masa # Put your books on the {table}.
+car # araba # My dad bought a new {car}.
+body # vücut # Exercise is good for your {body}.
+face # yüz # She has a beautiful {face}.
+street # sokak # I live on a quiet {street}.
+line # çizgi # Draw a straight {line} on the paper.
+area # alan # This {area} of the city is very old.
+end # son # This is the {end} of the story.
+state # durum # What is the current {state} of the project?
+town # kasaba # I grew up in a small {town}.
+minute # dakika # Wait just one {minute} please.
+idea # fikir # I have a great {idea}!
+business # iş # My uncle has his own {business}.
+job # iş # I hope to find a good {job} after school.
+hour # saat # The movie is two {hour}s long.
+power # güç # Knowledge is {power}.
+mother # anne # My {mother} makes the best cookies.
+father # baba # My {father} teaches me how to ride a bike.
+parent # ebeveyn # Every {parent} wants the best for their child.
+moment # an # Wait a {moment} please.
+air # hava # The {air} smells so fresh after the rain.
+teacher # öğretmen # My {teacher} is very kind and helpful.
+force # güç # Don't use too much {force} to open it.
+education # eğitim # {Education} is very important for everyone.
+foot # ayak # I hurt my {foot} while playing football.
+boy # erkek çocuk # The {boy} is playing with his dog.
+age # yaş # What {age} are you?
+office # ofis # My mom works in an {office} downtown.
+community # topluluk # Our {community} organized a big party.
+guy # adam # That {guy} over there is my cousin.
+voice # ses # She has a beautiful singing {voice}.
+window # pencere # Please open the {window}, it's hot in here.
+market # pazar # We buy fresh vegetables at the {market}.
+price # fiyat # What is the {price} of this shirt?
+church # kilise # There is an old {church} in our town.
+road # yol # Be careful when you cross the {road}.
+bed # yatak # I go to {bed} at ten o'clock.
+building # bina # That {building} is very tall.
+morning # sabah # I wake up early every {morning}.
+result # sonuç # I am waiting for the exam {result}.
+paper # kağıt # I need a piece of {paper} to write on.
+music # müzik # I love listening to {music}.
+service # hizmet # The {service} at this hotel is excellent.
+glass # bardak # Can I have a {glass} of milk?
+heart # kalp # She has a kind {heart}.
+phone # telefon # My {phone} battery is dead.
+hospital # hastane # The {hospital} is next to the park.
+dog # köpek # My {dog} loves to play in the garden.
+wall # duvar # There is a beautiful painting on the {wall}.
+letter # mektup # I wrote a {letter} to my grandmother.
+light # ışık # Please turn on the {light}.

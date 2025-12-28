@@ -1,0 +1,101 @@
+good # iyi # This is a very {good} book to read.
+new # yeni # I got a {new} backpack for school.
+first # ilk # This is my {first} time in this city.
+last # son # December is the {last} month of the year.
+long # uzun # It was a {long} day at school.
+great # harika # We had a {great} time at the party.
+little # küçük # I have a {little} sister who is five years old.
+own # kendi # I want to have my {own} room.
+other # diğer # The {other} students are waiting outside.
+old # eski # This is a very {old} building.
+right # doğru # That is the {right} answer!
+big # büyük # We live in a {big} house.
+high # yüksek # The mountain is very {high}.
+different # farklı # We have {different} opinions about this.
+small # küçük # The cat is very {small} and cute.
+large # büyük # We need a {large} table for the party.
+next # sonraki # See you {next} week!
+early # erken # I wake up {early} every morning.
+young # genç # She is too {young} to drive a car.
+important # önemli # This is a very {important} exam.
+few # az # I have only a {few} friends at school.
+public # halka açık # This is a {public} park, everyone can come.
+bad # kötü # The weather is very {bad} today.
+same # aynı # We go to the {same} school.
+able # yetenekli # She is {able} to speak three languages.
+best # en iyi # You are my {best} friend.
+better # daha iyi # This book is {better} than the other one.
+sure # emin # I am {sure} that she will come.
+free # özgür # Are you {free} this afternoon?
+real # gerçek # Is this a {real} diamond?
+true # doğru # Everything I told you is {true}.
+whole # bütün # I ate the {whole} pizza by myself.
+certain # kesin # I am {certain} that I locked the door.
+hard # zor # This math problem is very {hard}.
+full # dolu # The glass is {full} of water.
+hot # sıcak # The soup is too {hot} to eat.
+cold # soğuk # It is very {cold} outside today.
+easy # kolay # This exercise is very {easy}.
+strong # güçlü # My dad is very {strong}.
+simple # basit # The recipe is very {simple} to follow.
+clear # açık # The sky is {clear} and blue today.
+ready # hazır # I am {ready} for the exam.
+common # yaygın # This is a very {common} mistake.
+main # ana # What is the {main} idea of this story?
+red # kırmızı # She is wearing a {red} dress.
+blue # mavi # The sky is {blue} and beautiful.
+white # beyaz # I like your {white} shoes.
+black # siyah # The cat is {black} and fluffy.
+green # yeşil # The grass is {green} in spring.
+dark # karanlık # It gets {dark} early in winter.
+light # hafif # This bag is very {light} to carry.
+open # açık # The store is {open} until nine.
+close # yakın # My school is very {close} to my house.
+low # düşük # The price is very {low} today.
+deep # derin # The swimming pool is very {deep}.
+quick # hızlı # Let's take a {quick} break.
+slow # yavaş # The turtle is very {slow}.
+fast # hızlı # The cheetah is a very {fast} animal.
+short # kısa # It is a {short} walk to the park.
+nice # güzel # What a {nice} day it is today!
+happy # mutlu # I am so {happy} to see you!
+sad # üzgün # Why do you look so {sad}?
+beautiful # güzel # The sunset is {beautiful} tonight.
+rich # zengin # He became very {rich} and famous.
+poor # fakir # The {poor} family needs our help.
+cheap # ucuz # This shirt is very {cheap}.
+expensive # pahalı # The car is too {expensive} for me.
+clean # temiz # My room is {clean} and tidy.
+dirty # kirli # Your shoes are very {dirty}.
+heavy # ağır # This box is too {heavy} to carry.
+empty # boş # The bottle is {empty}.
+wide # geniş # The river is very {wide} here.
+narrow # dar # The street is too {narrow} for cars.
+thick # kalın # I need a {thick} blanket for winter.
+thin # ince # The ice is too {thin} to walk on.
+warm # ılık # The weather is {warm} and pleasant.
+cool # serin # The evenings are {cool} in autumn.
+soft # yumuşak # The pillow is very {soft}.
+loud # gürültülü # The music is too {loud}.
+quiet # sessiz # The library is very {quiet}.
+safe # güvenli # This neighborhood is very {safe}.
+dangerous # tehlikeli # Swimming here is {dangerous}.
+difficult # zor # The exam was very {difficult}.
+tired # yorgun # I am so {tired} after the long trip.
+hungry # aç # I am very {hungry}, let's eat!
+thirsty # susamış # I am {thirsty}, can I have some water?
+sick # hasta # I feel {sick} today, I can't go to school.
+healthy # sağlıklı # Eating vegetables is {healthy} for you.
+famous # ünlü # She wants to be a {famous} actress.
+popular # popüler # This song is very {popular} right now.
+special # özel # Today is a very {special} day.
+natural # doğal # I love {natural} landscapes.
+modern # modern # This is a very {modern} building.
+ancient # eski # We visited an {ancient} castle.
+fresh # taze # I like to eat {fresh} fruits.
+sweet # tatlı # This cake is very {sweet}.
+sour # ekşi # The lemon is very {sour}.
+bitter # acı # This coffee is too {bitter} for me.
+bright # parlak # The sun is very {bright} today.
+interesting # ilginç # This book is very {interesting}.
+boring # sıkıcı # The movie was so {boring}.

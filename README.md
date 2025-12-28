@@ -9,6 +9,12 @@
 - **Yönetici paneli** - Kelimeleri manuel veya toplu dosya yükleme ile ekle
 - **Mobil uyumlu** - Her cihazda çalışır
 
+# Kelime Setleri
+
+/vocabulary/ klasörü, en yaygın fiiller, sıfatlar ve isimler içeren üç örnek girdi dosyası içerir.
+Kurulumdan sonra, admin sayfasına (localhost:3000/admin) gidin ve toplu yükleme kullanın.
+
+
 ---
 
 # Vocabulary Trainer
@@ -23,6 +29,12 @@ A web-based Turkish-English vocabulary learning app using the **Leitner spaced r
 - **Mobile-friendly** - Works on any device
 
 ---
+
+# Vocabulary
+
+The folder /vocabulary/ contains three example input files, with the most common verbs, adjectives and nouns.
+After installation, just go to the admin page (localhost:3000/admin) and use bulk upload.
+
 ## Screenshots
 
 ![Screenshot 3](pictures/screenshot3.png)
