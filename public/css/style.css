@@ -26,7 +26,7 @@
 
 body {
     font-family: 'Nunito', sans-serif;
-    background: linear-gradient(135deg, var(--pastel-pink) 0%, var(--pastel-purple) 50%, var(--light-pink) 100%);
+    background: linear-gradient(135deg, #677be6 0%, #764ca3 100%);
     min-height: 100vh;
     color: var(--text-dark);
 }
@@ -62,8 +62,8 @@ body {
 .dashboard-header h1 {
     font-size: 1.8rem;
     font-weight: 800;
-    color: var(--primary-pink);
-    text-shadow: 2px 2px 0 var(--white);
+    color: var(--white);
+    text-shadow: 2px 2px 4px rgba(50, 30, 80, 0.4);
     margin-bottom: 16px;
 }
 
@@ -410,6 +410,7 @@ body {
     border-radius: 24px;
     padding: 20px;
     margin-top: 20px;
+    margin-bottom: 20px;
     box-shadow: var(--shadow);
 }
 
@@ -1217,4 +1218,24 @@ body {
 .close-popup-btn:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-hover);
+}
+
+/* Desktop layout - 2 column */
+@media (min-width: 900px) {
+    .app-container {
+        max-width: 1000px;
+    }
+
+    .dashboard-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .dashboard-content .progress-overview,
+    .dashboard-content .weekly-tracker,
+    .dashboard-content .session-selection,
+    .dashboard-content .category-evaluation {
+        margin-bottom: 0;
+    }
 }

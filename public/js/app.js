@@ -721,8 +721,8 @@ function renderWeeklyTracker(recentActivity) {
 
     container.innerHTML = days.map(day => {
         const stars = day.sessions === 0 ? ''
-            : day.sessions === 1 ? '⭐'
-            : '⭐⭐';
+            : day.sessions >= 5 ? '⭐⭐'
+            : '⭐';
         const classes = ['day-box'];
         if (day.isToday) classes.push('today');
         if (day.sessions > 0) classes.push('has-activity');
