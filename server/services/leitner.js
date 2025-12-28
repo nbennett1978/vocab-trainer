@@ -362,7 +362,7 @@ function getProgressStats() {
     const totalWords = (Object.values(result.en_to_tr).reduce((a, b) => a + b, 0) +
                        Object.values(result.tr_to_en).reduce((a, b) => a + b, 0)) / 2;
 
-    // A word is fully mastered when both directions are in box 5
+    // A word is fully mastered when both directions are in box 3, 4, or 5
     const fullyMasteredResult = progressOperations.getTotalMastered.get();
     const fullyMastered = fullyMasteredResult?.count || 0;
 

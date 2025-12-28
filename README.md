@@ -155,13 +155,13 @@ Then in Unraid:
 
 ### Unraid Container Settings
 
-| Setting | Value |
-|---------|-------|
-| **Name** | vocab-trainer |
-| **Repository** | vocab-trainer:latest (local) or yourusername/vocab-trainer:latest |
-| **Network Type** | Bridge |
-| **Port Mapping** | Host: 3000 → Container: 3000 |
-| **Path Mapping** | Host: /mnt/user/appdata/vocab-trainer → Container: /app/data |
+| Setting          | Value                                                             |
+| ---------------- | ----------------------------------------------------------------- |
+| **Name**         | vocab-trainer                                                     |
+| **Repository**   | vocab-trainer:latest (local) or yourusername/vocab-trainer:latest |
+| **Network Type** | Bridge                                                            |
+| **Port Mapping** | Host: 3000 → Container: 3000                                      |
+| **Path Mapping** | Host: /mnt/user/appdata/vocab-trainer → Container: /app/data      |
 
 ### Unraid Docker Template (XML)
 

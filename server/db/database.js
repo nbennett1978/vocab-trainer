@@ -30,7 +30,7 @@ function initializeDatabase() {
 const wordOperations = {
     getAll: db.prepare(`
         SELECT w.*,
-            (SELECT COUNT(*) FROM progress p WHERE p.word_id = w.id AND p.leitner_box = 5) as directions_mastered
+            (SELECT COUNT(*) FROM progress p WHERE p.word_id = w.id AND p.leitner_box >= 3) as directions_mastered
         FROM words w
         ORDER BY w.created_at DESC
     `),
@@ -125,7 +125,7 @@ const progressOperations = {
         SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
         FROM progress p
         JOIN words w ON p.word_id = w.id
-        WHERE p.leitner_box = 5 AND p.direction = ?
+        WHERE p.leitner_box >= 3 AND p.direction = ?
     `),
 
     getReviewWords: db.prepare(`
@@ -180,11 +180,13 @@ const progressOperations = {
     `),
 
     getTotalMastered: db.prepare(`
-        SELECT COUNT(DISTINCT word_id) as count
-        FROM progress
-        WHERE leitner_box = 5
-        GROUP BY word_id
-        HAVING COUNT(*) = 2
+        SELECT COUNT(*) as count FROM (
+            SELECT word_id
+            FROM progress
+            WHERE leitner_box >= 3
+            GROUP BY word_id
+            HAVING COUNT(*) = 2
+        )
     `)
 };
 
