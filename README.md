@@ -25,10 +25,7 @@ A web-based Turkish-English vocabulary learning app using the **Leitner spaced r
 ---
 ## Screenshots
 
-![Screenshot 1](pictures/screenshot1.png)
-
-
-![Screenshot 2](pictures/screenshot2.png)
+![Screenshot 3](pictures/screenshot3.png)
 
 
 ## Deployment Guide
