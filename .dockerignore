@@ -2,6 +2,7 @@ node_modules
 npm-debug.log
 data/*.db
 data/uploads/*
+config/admin.json
 .git
 .gitignore
 *.md

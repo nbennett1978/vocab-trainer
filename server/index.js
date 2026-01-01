@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { initializeDatabase } = require('./db/database');
+const { initializeDatabase, db } = require('./db/database');
 
 // Initialize database
 initializeDatabase();
@@ -16,9 +16,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API routes
+const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 
+// Initialize auth routes with database
+authRoutes.setDatabase(db);
+
+app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/admin/api', adminRoutes);
 

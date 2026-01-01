@@ -3,14 +3,121 @@
 let allWords = [];
 let workingSetWords = [];
 let entireSetWords = [];
+let currentUser = null;
+let selectedUserId = null; // For viewing specific user's progress
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+function getToken() {
+    return localStorage.getItem('auth_token');
+}
+
+function setToken(token) {
+    localStorage.setItem('auth_token', token);
+}
+
+function clearToken() {
+    localStorage.removeItem('auth_token');
+}
+
+function setUser(user) {
+    currentUser = user;
+    localStorage.setItem('user', JSON.stringify(user));
+}
+
+function getUser() {
+    if (currentUser) return currentUser;
+    const stored = localStorage.getItem('user');
+    if (stored) {
+        currentUser = JSON.parse(stored);
+        return currentUser;
+    }
+    return null;
+}
+
+function clearUser() {
+    currentUser = null;
+    localStorage.removeItem('user');
+}
+
+// API fetch with auth header
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    if (token) {
+        options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    const response = await fetch(url, options);
+
+    // Handle 401/403 - redirect to login
+    if (response.status === 401 || response.status === 403) {
+        clearToken();
+        clearUser();
+        window.location.href = '/';
+        throw new Error('Session expired. Please login again.');
+    }
+
+    return response;
+}
+
+// Check if already logged in and is admin
+async function checkAuth() {
+    const token = getToken();
+    if (!token) {
+        window.location.href = '/';
+        return false;
+    }
+
+    try {
+        const response = await apiFetch('/api/auth/me');
+        const data = await response.json();
+
+        if (data.success && data.user && data.user.is_admin) {
+            setUser(data.user);
+            return true;
+        } else {
+            // Not admin - redirect to learner view
+            window.location.href = '/';
+            return false;
+        }
+    } catch (e) {
+        // Token invalid
+        clearToken();
+        clearUser();
+        window.location.href = '/';
+        return false;
+    }
+}
+
+// Logout function
+async function logout() {
+    try {
+        await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+        // Ignore errors on logout
+    }
+
+    clearToken();
+    clearUser();
+    window.location.href = '/';
+}
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check auth first
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) return;
+
     setupTabs();
     setupForms();
     loadCategories();
     loadWords();
-    loadWorkingSet();
+    loadUsers();
     loadProgress();
     loadSettings();
 });
@@ -29,6 +136,7 @@ function setupTabs() {
 
             // Refresh data when switching tabs
             if (btn.dataset.tab === 'words') loadWords();
+            if (btn.dataset.tab === 'users') loadUsersList();
             if (btn.dataset.tab === 'working-set') loadWorkingSet();
             if (btn.dataset.tab === 'entire-set') loadEntireSet();
             if (btn.dataset.tab === 'progress') loadProgress();
@@ -66,6 +174,18 @@ function setupForms() {
     // Reset progress button
     document.getElementById('reset-progress-btn').addEventListener('click', resetProgress);
 
+    // Add user form
+    document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await createUser();
+    });
+
+    // Reset password form
+    document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitResetPassword();
+    });
+
     // Search and filter
     document.getElementById('search-input').addEventListener('input', filterWords);
     document.getElementById('filter-category').addEventListener('change', filterWords);
@@ -92,7 +212,7 @@ function setupForms() {
 // Load categories from server
 async function loadCategories() {
     try {
-        const response = await fetch('/api/categories');
+        const response = await apiFetch('/api/categories');
         const data = await response.json();
 
         if (data.success) {
@@ -140,7 +260,7 @@ function capitalize(str) {
 // Load words
 async function loadWords() {
     try {
-        const response = await fetch('/admin/api/words');
+        const response = await apiFetch('/admin/api/words');
         const data = await response.json();
 
         if (data.success) {
@@ -170,10 +290,6 @@ function renderWords(words) {
                 ${word.example_sentence ? `<div class="word-sentence">${escapeHtml(word.example_sentence)}</div>` : ''}
             </div>
             <span class="word-category">${word.category}</span>
-            <div class="word-progress">
-                ${word.progress.en_to_tr ? `EN→TR: Box ${word.progress.en_to_tr.box}` : ''}<br>
-                ${word.progress.tr_to_en ? `TR→EN: Box ${word.progress.tr_to_en.box}` : ''}
-            </div>
             <div class="word-actions">
                 <button class="btn btn-secondary btn-sm" onclick="editWord(${word.id})">Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteWord(${word.id})">Delete</button>
@@ -182,10 +298,44 @@ function renderWords(words) {
     `).join('');
 }
 
+// Load users list
+async function loadUsers() {
+    try {
+        const response = await apiFetch('/admin/api/users');
+        const data = await response.json();
+
+        if (data.success) {
+            const users = data.users.filter(u => !u.is_admin);
+            // Set first user as selected if none selected
+            if (!selectedUserId && users.length > 0) {
+                selectedUserId = users[0].id;
+            }
+            renderUserSelector(users);
+            // Now load working set for selected user
+            loadWorkingSet();
+        }
+    } catch (error) {
+        console.error('Load users error:', error);
+    }
+}
+
+// Render user selector
+function renderUserSelector(users) {
+    const container = document.getElementById('user-selector');
+    if (!container) return;
+
+    container.innerHTML = users.map(user => `
+        <option value="${user.id}" ${user.id === selectedUserId ? 'selected' : ''}>
+            ${escapeHtml(user.username)} ${user.stats ? `(${user.stats.totalStars}⭐)` : ''}
+        </option>
+    `).join('');
+}
+
 // Load working set
 async function loadWorkingSet() {
+    if (!selectedUserId) return;
     try {
-        const response = await fetch('/admin/api/working-set');
+        const response = await apiFetch(`/admin/api/working-set?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -227,8 +377,9 @@ function renderWorkingSet(words) {
 
 // Load entire set
 async function loadEntireSet() {
+    if (!selectedUserId) return;
     try {
-        const response = await fetch('/admin/api/entire-set');
+        const response = await apiFetch(`/admin/api/entire-set?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -322,7 +473,7 @@ async function addWord() {
     const sentence = document.getElementById('new-sentence').value.trim();
 
     try {
-        const response = await fetch('/admin/api/words', {
+        const response = await apiFetch('/admin/api/words', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -374,7 +525,7 @@ async function uploadFile() {
     if (category) formData.append('category', category);
 
     try {
-        const response = await fetch('/admin/api/words/upload', {
+        const response = await apiFetch('/admin/api/words/upload', {
             method: 'POST',
             body: formData
         });
@@ -413,7 +564,7 @@ async function editWord(id) {
 
     // Populate edit category dropdown with all existing categories
     try {
-        const response = await fetch('/api/categories');
+        const response = await apiFetch('/api/categories');
         const data = await response.json();
         if (data.success) {
             const categories = data.categories.filter(c => c !== 'all');
@@ -449,7 +600,7 @@ async function saveEdit() {
     const sentence = document.getElementById('edit-sentence').value.trim();
 
     try {
-        const response = await fetch(`/admin/api/words/${id}`, {
+        const response = await apiFetch(`/admin/api/words/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -486,7 +637,7 @@ async function deleteWord(id) {
     }
 
     try {
-        const response = await fetch(`/admin/api/words/${id}`, {
+        const response = await apiFetch(`/admin/api/words/${id}`, {
             method: 'DELETE'
         });
 
@@ -505,7 +656,7 @@ async function deleteWord(id) {
 // Load progress
 async function loadProgress() {
     try {
-        const response = await fetch('/admin/api/progress');
+        const response = await apiFetch('/admin/api/progress');
         const data = await response.json();
 
         if (data.success) {
@@ -620,7 +771,7 @@ async function resetProgress() {
     }
 
     try {
-        const response = await fetch('/admin/api/reset', {
+        const response = await apiFetch('/admin/api/reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ confirm: 'RESET' })
@@ -643,7 +794,7 @@ async function resetProgress() {
 // Load settings
 async function loadSettings() {
     try {
-        const response = await fetch('/admin/api/settings');
+        const response = await apiFetch('/admin/api/settings');
         const data = await response.json();
 
         if (data.success) {
@@ -670,7 +821,7 @@ async function saveSettings() {
     };
 
     try {
-        const response = await fetch('/admin/api/settings', {
+        const response = await apiFetch('/admin/api/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
@@ -685,6 +836,165 @@ async function saveSettings() {
         }
     } catch (error) {
         alert('Error saving settings: ' + error.message);
+    }
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+let allUsers = [];
+
+// Load users list for the Users tab
+async function loadUsersList() {
+    try {
+        const response = await apiFetch('/admin/api/users');
+        const data = await response.json();
+
+        if (data.success) {
+            allUsers = data.users;
+            document.getElementById('user-count').textContent = allUsers.length;
+            renderUsersList(allUsers);
+        }
+    } catch (error) {
+        console.error('Load users error:', error);
+    }
+}
+
+// Render users list
+function renderUsersList(users) {
+    const container = document.getElementById('users-list');
+
+    if (users.length === 0) {
+        container.innerHTML = '<p class="loading">No users found</p>';
+        return;
+    }
+
+    container.innerHTML = users.map(user => `
+        <div class="user-item" data-id="${user.id}">
+            <div class="user-main">
+                <div class="user-username">${escapeHtml(user.username)}</div>
+                <div class="user-role ${user.is_admin ? 'admin' : 'student'}">${user.is_admin ? 'Admin' : 'Student'}</div>
+            </div>
+            <div class="user-stats">
+                ${user.stats ? `
+                    <span class="stat">⭐ ${user.stats.totalStars}</span>
+                    <span class="stat">🔥 ${user.stats.currentStreak}</span>
+                    ${user.stats.lastActiveDate ? `<span class="stat">Last active: ${user.stats.lastActiveDate}</span>` : ''}
+                ` : '<span class="stat">No activity yet</span>'}
+            </div>
+            <div class="user-actions">
+                ${!user.is_admin ? `
+                    <button class="btn btn-secondary btn-sm" onclick="openResetModal(${user.id}, '${escapeHtml(user.username)}')">Reset Password</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')">Delete</button>
+                ` : '<span class="admin-badge">Protected</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Create new user
+async function createUser() {
+    const username = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('new-password').value;
+    const role = document.getElementById('new-role').value;
+
+    if (!username || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    try {
+        const response = await apiFetch('/admin/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                password,
+                is_admin: role === 'admin'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`User "${username}" created successfully!`);
+            document.getElementById('add-user-form').reset();
+            loadUsersList();
+            loadUsers(); // Refresh user selector dropdowns
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error creating user: ' + error.message);
+    }
+}
+
+// Delete user
+async function deleteUser(userId, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"?\nThis will delete all their progress!`)) {
+        return;
+    }
+
+    try {
+        const response = await apiFetch(`/admin/api/users/${userId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`User "${username}" deleted successfully!`);
+            loadUsersList();
+            loadUsers(); // Refresh user selector dropdowns
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting user: ' + error.message);
+    }
+}
+
+// Open reset password modal
+function openResetModal(userId, username) {
+    document.getElementById('reset-user-id').value = userId;
+    document.getElementById('reset-username').textContent = username;
+    document.getElementById('reset-new-password').value = '';
+    document.getElementById('reset-password-modal').classList.remove('hidden');
+}
+
+// Close reset password modal
+function closeResetModal() {
+    document.getElementById('reset-password-modal').classList.add('hidden');
+}
+
+// Submit reset password
+async function submitResetPassword() {
+    const userId = document.getElementById('reset-user-id').value;
+    const password = document.getElementById('reset-new-password').value;
+
+    if (!password || password.length < 4) {
+        alert('Password must be at least 4 characters');
+        return;
+    }
+
+    try {
+        const response = await apiFetch(`/admin/api/users/${userId}/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Password reset successfully!');
+            closeResetModal();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error resetting password: ' + error.message);
     }
 }
 
@@ -709,3 +1019,6 @@ function formatDate(dateString) {
 window.editWord = editWord;
 window.deleteWord = deleteWord;
 window.closeModal = closeModal;
+window.openResetModal = openResetModal;
+window.closeResetModal = closeResetModal;
+window.deleteUser = deleteUser;

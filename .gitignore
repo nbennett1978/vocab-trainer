@@ -12,6 +12,9 @@ node_modules/
 .env.local
 .env.*.local
 
+# Config with secrets (keep .example)
+config/admin.json
+
 # Logs
 logs/
 *.log

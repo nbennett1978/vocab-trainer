@@ -31,39 +31,39 @@ function getNewBox(currentBox, isCorrect) {
     }
 }
 
-// Get the current working set (words in box 1-5)
-function getWorkingSet(direction) {
+// Get the current working set (words in box 1-5) for a user
+function getWorkingSet(userId, direction) {
     const query = db.prepare(`
         SELECT p.*, w.english, w.turkish, w.category, w.example_sentence
         FROM progress p
         JOIN words w ON p.word_id = w.id
-        WHERE p.leitner_box > 0 AND p.direction = ?
+        WHERE p.user_id = ? AND p.leitner_box > 0 AND p.direction = ?
         ORDER BY p.leitner_box ASC, p.last_asked ASC
     `);
-    return query.all(direction);
+    return query.all(userId, direction);
 }
 
-// Get working set size (count of words in box 1-5 for either direction)
-function getWorkingSetSize() {
+// Get working set size (count of words in box 1-5 for either direction) for a user
+function getWorkingSetSize(userId) {
     const query = db.prepare(`
         SELECT COUNT(DISTINCT word_id) as count
         FROM progress
-        WHERE leitner_box > 0
+        WHERE user_id = ? AND leitner_box > 0
     `);
-    const result = query.get();
+    const result = query.get(userId);
     return result?.count || 0;
 }
 
-// Calculate overall success rate for the working set
-function getWorkingSetSuccessRate() {
+// Calculate overall success rate for the working set for a user
+function getWorkingSetSuccessRate(userId) {
     const query = db.prepare(`
         SELECT
             SUM(times_asked) as total_asked,
             SUM(times_correct) as total_correct
         FROM progress
-        WHERE leitner_box > 0
+        WHERE user_id = ? AND leitner_box > 0
     `);
-    const result = query.get();
+    const result = query.get(userId);
 
     if (!result || result.total_asked === 0) {
         return 1.0; // No data yet, allow adding words
@@ -73,7 +73,7 @@ function getWorkingSetSuccessRate() {
 }
 
 // Get words with success rate details for admin view
-function getWorkingSetWithStats() {
+function getWorkingSetWithStats(userId) {
     const query = db.prepare(`
         SELECT
             w.id,
@@ -87,36 +87,36 @@ function getWorkingSetWithStats() {
             p_tr.times_asked as tr_to_en_asked,
             p_tr.times_correct as tr_to_en_correct
         FROM words w
-        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
-        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
+        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr' AND p_en.user_id = ?
+        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en' AND p_tr.user_id = ?
         WHERE p_en.leitner_box > 0 OR p_tr.leitner_box > 0
     `);
 
-    const words = query.all();
+    const words = query.all(userId, userId);
 
     return formatWordsWithStats(words);
 }
 
 // Get ALL words with success rate details for admin view (entire set)
-function getEntireSetWithStats() {
+function getEntireSetWithStats(userId) {
     const query = db.prepare(`
         SELECT
             w.id,
             w.english,
             w.turkish,
             w.category,
-            p_en.leitner_box as en_to_tr_box,
-            p_en.times_asked as en_to_tr_asked,
-            p_en.times_correct as en_to_tr_correct,
-            p_tr.leitner_box as tr_to_en_box,
-            p_tr.times_asked as tr_to_en_asked,
-            p_tr.times_correct as tr_to_en_correct
+            COALESCE(p_en.leitner_box, 0) as en_to_tr_box,
+            COALESCE(p_en.times_asked, 0) as en_to_tr_asked,
+            COALESCE(p_en.times_correct, 0) as en_to_tr_correct,
+            COALESCE(p_tr.leitner_box, 0) as tr_to_en_box,
+            COALESCE(p_tr.times_asked, 0) as tr_to_en_asked,
+            COALESCE(p_tr.times_correct, 0) as tr_to_en_correct
         FROM words w
-        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr'
-        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en'
+        LEFT JOIN progress p_en ON w.id = p_en.word_id AND p_en.direction = 'en_to_tr' AND p_en.user_id = ?
+        LEFT JOIN progress p_tr ON w.id = p_tr.word_id AND p_tr.direction = 'tr_to_en' AND p_tr.user_id = ?
     `);
 
-    const words = query.all();
+    const words = query.all(userId, userId);
 
     return formatWordsWithStats(words);
 }
@@ -151,16 +151,16 @@ function formatWordsWithStats(words) {
     });
 }
 
-// Initialize working set with random words
-function initializeWorkingSet(count = INITIAL_WORKING_SET_SIZE) {
-    // Get words that are not yet in the working set (box 0)
+// Initialize working set with random words for a user
+function initializeWorkingSet(userId, count = INITIAL_WORKING_SET_SIZE) {
+    // Get words that are not yet in the working set (box 0) for this user
     const newWords = db.prepare(`
         SELECT DISTINCT p.word_id
         FROM progress p
-        WHERE p.leitner_box = 0
+        WHERE p.user_id = ? AND p.leitner_box = 0
         ORDER BY RANDOM()
         LIMIT ?
-    `).all(count);
+    `).all(userId, count);
 
     if (newWords.length === 0) return 0;
 
@@ -168,12 +168,12 @@ function initializeWorkingSet(count = INITIAL_WORKING_SET_SIZE) {
     const updateStmt = db.prepare(`
         UPDATE progress
         SET leitner_box = 1, first_learned = datetime('now')
-        WHERE word_id = ? AND leitner_box = 0
+        WHERE user_id = ? AND word_id = ? AND leitner_box = 0
     `);
 
     const transaction = db.transaction(() => {
         for (const word of newWords) {
-            updateStmt.run(word.word_id);
+            updateStmt.run(userId, word.word_id);
         }
     });
 
@@ -181,14 +181,14 @@ function initializeWorkingSet(count = INITIAL_WORKING_SET_SIZE) {
     return newWords.length;
 }
 
-// Add more words to working set
-function expandWorkingSet(count = 5) {
-    return initializeWorkingSet(count);
+// Add more words to working set for a user
+function expandWorkingSet(userId, count = 5) {
+    return initializeWorkingSet(userId, count);
 }
 
-// Check if we should add more words to the working set
-function shouldExpandWorkingSet() {
-    const workingSetSize = getWorkingSetSize();
+// Check if we should add more words to the working set for a user
+function shouldExpandWorkingSet(userId) {
+    const workingSetSize = getWorkingSetSize(userId);
 
     // If working set is empty, initialize it
     if (workingSetSize === 0) {
@@ -196,7 +196,7 @@ function shouldExpandWorkingSet() {
     }
 
     // Check success rate
-    const successRate = getWorkingSetSuccessRate();
+    const successRate = getWorkingSetSuccessRate(userId);
 
     if (successRate >= SUCCESS_RATE_THRESHOLD) {
         return { shouldExpand: true, reason: 'success_rate', successRate };
@@ -205,12 +205,10 @@ function shouldExpandWorkingSet() {
     return { shouldExpand: false, reason: 'low_success_rate', successRate };
 }
 
-// Select words for a session
-function selectWordsForSession(sessionType, categoryFilter, direction) {
+// Select words for a session for a user
+function selectWordsForSession(userId, sessionType, categoryFilter, direction) {
     const quickSetting = settingsOperations.get.get('quick_lesson_count');
     const weakSetting = settingsOperations.get.get('weak_words_count');
-
-    console.log('Settings from DB:', { quick: quickSetting, weak: weakSetting });
 
     const settings = {
         quick: parseInt(quickSetting?.value || '5'),
@@ -220,16 +218,15 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
     };
 
     const targetCount = settings[sessionType] || 5;
-    console.log(`Session type: ${sessionType}, Target count: ${targetCount}`);
     const masteredReviewChance = parseFloat(settingsOperations.get.get('mastered_review_chance')?.value || '0.1');
 
     // Check if we need to initialize or expand working set
-    const expansionCheck = shouldExpandWorkingSet();
+    const expansionCheck = shouldExpandWorkingSet(userId);
     if (expansionCheck.shouldExpand) {
         if (expansionCheck.reason === 'empty') {
-            initializeWorkingSet(INITIAL_WORKING_SET_SIZE);
+            initializeWorkingSet(userId, INITIAL_WORKING_SET_SIZE);
         } else if (expansionCheck.reason === 'success_rate') {
-            expandWorkingSet(5); // Add 5 more words when doing well
+            expandWorkingSet(userId, 5); // Add 5 more words when doing well
         }
     }
 
@@ -237,25 +234,24 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
     if (sessionType === 'weak_words') {
         // Get the last N weak words (in box 1-2, recently asked)
-        const weakWords = progressOperations.getWeakWords.all(direction, targetCount);
+        const weakWords = progressOperations.getWeakWords.all(userId, direction, targetCount);
         selectedWords = weakWords;
 
         // If not enough weak words, fill with box 1-3 words
         if (selectedWords.length < targetCount) {
-            let dueWords = progressOperations.getWordsDueForReview.all(direction);
+            let dueWords = progressOperations.getWordsDueForReview.all(userId, direction);
             dueWords = dueWords.filter(w => !selectedWords.find(s => s.id === w.id));
             dueWords.sort((a, b) => a.leitner_box - b.leitner_box);
             selectedWords = selectedWords.concat(dueWords.slice(0, targetCount - selectedWords.length));
         }
     } else if (sessionType === 'review_mastered') {
         // Get words from boxes 3-5 (well-learned words for review)
-        const reviewWords = progressOperations.getReviewWords.all(direction);
+        const reviewWords = progressOperations.getReviewWords.all(userId, direction);
         // Shuffle and take target count
         selectedWords = shuffleArray(reviewWords).slice(0, targetCount);
-        console.log(`Review words found: ${reviewWords.length}, selected: ${selectedWords.length}`);
     } else {
         // Get words from the working set (box 1-5) that are due for review
-        let dueWords = progressOperations.getWordsDueForReview.all(direction);
+        let dueWords = progressOperations.getWordsDueForReview.all(userId, direction);
 
         // Filter by category if needed
         if (categoryFilter && categoryFilter !== 'all') {
@@ -273,11 +269,10 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
         // Take words that are due
         selectedWords = dueWords.slice(0, targetCount);
-        console.log(`Due words found: ${dueWords.length}, selected: ${selectedWords.length}`);
 
         // If not enough due words, get ANY words from working set (box 1-5)
         if (selectedWords.length < targetCount) {
-            let allWorkingSetWords = getWorkingSet(direction);
+            let allWorkingSetWords = getWorkingSet(userId, direction);
 
             // Filter by category if needed
             if (categoryFilter && categoryFilter !== 'all') {
@@ -292,12 +287,11 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
             // Add more words from working set
             const moreWords = allWorkingSetWords.slice(0, targetCount - selectedWords.length);
             selectedWords = selectedWords.concat(moreWords);
-            console.log(`Added ${moreWords.length} more words from working set`);
         }
 
         // If STILL not enough, add new words from box 0
         if (selectedWords.length < targetCount) {
-            let newWords = progressOperations.getNewWords.all(direction);
+            let newWords = progressOperations.getNewWords.all(userId, direction);
 
             // Filter by category if needed
             if (categoryFilter && categoryFilter !== 'all') {
@@ -306,12 +300,11 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
 
             const wordsToAdd = newWords.slice(0, targetCount - selectedWords.length);
             selectedWords = selectedWords.concat(wordsToAdd);
-            console.log(`Added ${wordsToAdd.length} new words from box 0`);
         }
 
         // Optionally add 1 mastered word for review
         if (Math.random() < masteredReviewChance && selectedWords.length > 0) {
-            let masteredWords = progressOperations.getMasteredWords.all(direction);
+            let masteredWords = progressOperations.getMasteredWords.all(userId, direction);
 
             if (categoryFilter && categoryFilter !== 'all') {
                 masteredWords = masteredWords.filter(w => w.category === categoryFilter);
@@ -328,7 +321,6 @@ function selectWordsForSession(sessionType, categoryFilter, direction) {
     }
 
     // Shuffle the final selection
-    console.log(`Selected ${selectedWords.length} words for session (target was ${targetCount})`);
     return shuffleArray(selectedWords);
 }
 
@@ -342,9 +334,9 @@ function shuffleArray(array) {
     return shuffled;
 }
 
-// Get progress statistics
-function getProgressStats() {
-    const stats = progressOperations.getStats.all();
+// Get progress statistics for a user
+function getProgressStats(userId) {
+    const stats = progressOperations.getStats.all(userId);
 
     // Organize by direction and box
     const result = {
@@ -363,12 +355,12 @@ function getProgressStats() {
                        Object.values(result.tr_to_en).reduce((a, b) => a + b, 0)) / 2;
 
     // A word is fully mastered when both directions are in box 3, 4, or 5
-    const fullyMasteredResult = progressOperations.getTotalMastered.get();
+    const fullyMasteredResult = progressOperations.getTotalMastered.get(userId);
     const fullyMastered = fullyMasteredResult?.count || 0;
 
     // Add working set info
-    const workingSetSize = getWorkingSetSize();
-    const successRate = getWorkingSetSuccessRate();
+    const workingSetSize = getWorkingSetSize(userId);
+    const successRate = getWorkingSetSuccessRate(userId);
 
     return {
         byDirection: result,
@@ -379,15 +371,15 @@ function getProgressStats() {
     };
 }
 
-// Check if all words are mastered
-function areAllWordsMastered() {
-    const stats = getProgressStats();
+// Check if all words are mastered for a user
+function areAllWordsMastered(userId) {
+    const stats = getProgressStats(userId);
     return stats.totalWords > 0 && stats.fullyMastered === stats.totalWords;
 }
 
-// Get count of review words (boxes 3-5)
-function getReviewWordCount() {
-    const result = progressOperations.countReviewWords.get();
+// Get count of review words (boxes 3-5) for a user
+function getReviewWordCount(userId) {
+    const result = progressOperations.countReviewWords.get(userId);
     return result?.count || 0;
 }
 

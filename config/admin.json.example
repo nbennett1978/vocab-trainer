@@ -1,0 +1,4 @@
+{
+  "jwtSecret": "CHANGE-THIS-TO-A-RANDOM-SECRET-STRING",
+  "adminPassword": "admin"
+}
