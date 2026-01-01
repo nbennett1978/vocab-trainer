@@ -27,6 +27,16 @@ const screens = {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide splash screen after 2 seconds
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('hidden');
+            // Remove from DOM after fade animation
+            setTimeout(() => splash.remove(), 500);
+        }
+    }, 2000);
+
     loadDashboard();
     setupEventListeners();
 });
