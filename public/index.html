@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
     <div class="app-container">
@@ -142,7 +143,12 @@
                 <!-- Question Card -->
                 <div class="question-card">
                     <div id="example-sentence" class="example-sentence"></div>
-                    <div id="question-word" class="question-word">word</div>
+                    <div class="word-with-audio">
+                        <div id="question-word" class="question-word">word</div>
+                        <button id="audio-btn" class="audio-btn" title="Hear pronunciation" style="display: none;">
+                            🔊
+                        </button>
+                    </div>
                     <div id="category-badge" class="category-badge">verb</div>
                 </div>
 

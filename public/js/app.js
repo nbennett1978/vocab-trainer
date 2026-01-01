@@ -13,6 +13,10 @@ let answerTimeout = 30; // Default, will be loaded from settings
 let timerInterval = null;
 let timeRemaining = 0;
 
+// Audio state
+let currentAudio = null;
+let isAudioPlaying = false;
+
 // DOM Elements
 const screens = {
     dashboard: document.getElementById('dashboard-screen'),
@@ -77,6 +81,13 @@ function setupEventListeners() {
     // Another lesson button
     document.getElementById('another-lesson').addEventListener('click', () => {
         startSession(lastSessionType, lastSessionCategory);
+    });
+
+    // Audio repeat button
+    document.getElementById('audio-btn').addEventListener('click', () => {
+        if (currentWordData && currentWordData.direction === 'en_to_tr') {
+            playWordAudio(currentWordData.english);
+        }
     });
 }
 
@@ -316,6 +327,20 @@ function displayWord(wordData) {
     document.getElementById('next-btn').classList.add('hidden');
     isRetryMode = false;
 
+    // Handle audio for English words (en_to_tr direction only)
+    const audioBtn = document.getElementById('audio-btn');
+    if (isEnToTr) {
+        // Show audio button and auto-play English word
+        audioBtn.style.display = 'inline-flex';
+        // Small delay to let the UI settle before playing
+        setTimeout(() => {
+            playWordAudio(wordData.english);
+        }, 300);
+    } else {
+        // Hide audio button for tr_to_en direction
+        audioBtn.style.display = 'none';
+    }
+
     // Start countdown timer
     startTimer();
 
@@ -370,9 +395,75 @@ function handleTimeUp() {
     handleDontKnow();
 }
 
+// Audio playback function using Puter TTS
+async function playWordAudio(word) {
+    const audioBtn = document.getElementById('audio-btn');
+
+    // If already playing, stop current audio
+    if (currentAudio && isAudioPlaying) {
+        try {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        } catch (e) {
+            // Ignore errors when stopping
+        }
+    }
+
+    try {
+        // Add playing state to button
+        if (audioBtn) {
+            audioBtn.classList.add('playing');
+        }
+        isAudioPlaying = true;
+
+        // Use Puter TTS with neural engine for better quality
+        currentAudio = await puter.ai.txt2speech(word, {
+            voice: "Joanna",      // Clear female voice
+            engine: "neural",     // High quality neural engine
+            language: "en-US"
+        });
+
+        // Set up event listener for when audio ends
+        currentAudio.onended = () => {
+            isAudioPlaying = false;
+            if (audioBtn) {
+                audioBtn.classList.remove('playing');
+            }
+        };
+
+        // Play the audio
+        await currentAudio.play();
+
+    } catch (error) {
+        console.error('Error playing audio:', error);
+        isAudioPlaying = false;
+        if (audioBtn) {
+            audioBtn.classList.remove('playing');
+        }
+    }
+}
+
+// Stop any playing audio
+function stopAudio() {
+    if (currentAudio && isAudioPlaying) {
+        try {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        } catch (e) {
+            // Ignore errors
+        }
+    }
+    isAudioPlaying = false;
+    const audioBtn = document.getElementById('audio-btn');
+    if (audioBtn) {
+        audioBtn.classList.remove('playing');
+    }
+}
+
 // Handle "Don't Know" button click
 async function handleDontKnow() {
     stopTimer();
+    stopAudio();
 
     // Disable inputs
     document.getElementById('answer-input').disabled = true;
@@ -517,6 +608,9 @@ async function submitAnswer() {
 
 // Next word
 function nextWord() {
+    // Stop any playing audio before moving to next word
+    stopAudio();
+
     if (currentSession.nextWord) {
         currentSession.currentIndex++;
         displayWord(currentSession.nextWord);
@@ -527,6 +621,7 @@ function nextWord() {
 // End session
 async function endSession() {
     stopTimer();
+    stopAudio();
     try {
         const response = await fetch('/api/session/end', {
             method: 'POST',
