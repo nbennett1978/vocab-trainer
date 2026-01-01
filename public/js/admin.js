@@ -407,9 +407,29 @@ async function uploadFile() {
 }
 
 // Edit word
-function editWord(id) {
+async function editWord(id) {
     const word = allWords.find(w => w.id === id);
     if (!word) return;
+
+    // Populate edit category dropdown with all existing categories
+    try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        if (data.success) {
+            const categories = data.categories.filter(c => c !== 'all');
+            const editCategorySelect = document.getElementById('edit-category');
+
+            // Build options including all existing categories
+            const defaultCategories = ['verb', 'noun', 'adjective', 'adverb', 'other'];
+            const allCategories = [...new Set([...defaultCategories, ...categories])].sort();
+
+            editCategorySelect.innerHTML = allCategories
+                .map(cat => `<option value="${cat}">${capitalize(cat)}</option>`)
+                .join('');
+        }
+    } catch (error) {
+        console.error('Error loading categories for edit:', error);
+    }
 
     document.getElementById('edit-id').value = word.id;
     document.getElementById('edit-english').value = word.english;
