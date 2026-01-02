@@ -203,11 +203,13 @@ function setupForms() {
         }
     });
 
-    // Working set category filter
+    // Working set filters
     document.getElementById('ws-filter-category').addEventListener('change', filterWorkingSet);
+    document.getElementById('ws-filter-bucket').addEventListener('change', filterWorkingSet);
 
-    // Entire set category filter
+    // Entire set filters
     document.getElementById('es-filter-category').addEventListener('change', filterEntireSet);
+    document.getElementById('es-filter-bucket').addEventListener('change', filterEntireSet);
 }
 
 // Load categories from server
@@ -382,21 +384,27 @@ function syncUserSelectors() {
     });
 }
 
-// Load working set
+// Load working set (now loads all words to allow bucket filtering)
 async function loadWorkingSet() {
     if (!selectedUserId) return;
     syncUserSelectors();
     try {
-        const response = await apiFetch(`/admin/api/working-set?user_id=${selectedUserId}`);
+        const response = await apiFetch(`/admin/api/entire-set?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
-            const { words, count, overallSuccessRate } = data.data;
+            const { words, count, inWorkingSet, notStarted } = data.data;
             workingSetWords = words;
 
             // Update stats
-            document.getElementById('ws-count').textContent = count;
-            document.getElementById('ws-success-rate').textContent = `${overallSuccessRate}%`;
+            document.getElementById('ws-count').textContent = inWorkingSet;
+
+            // Calculate success rate for words in working set
+            const wsWords = words.filter(w => w.en_to_tr.box > 0 || w.tr_to_en.box > 0);
+            const totalAsked = wsWords.reduce((sum, w) => sum + w.totalAsked, 0);
+            const totalCorrect = wsWords.reduce((sum, w) => sum + w.totalCorrect, 0);
+            const successRate = totalAsked > 0 ? Math.round((totalCorrect / totalAsked) * 100) : 0;
+            document.getElementById('ws-success-rate').textContent = `${successRate}%`;
 
             // Render working set list (apply current filter)
             filterWorkingSet();
@@ -409,9 +417,23 @@ async function loadWorkingSet() {
 // Filter working set
 function filterWorkingSet() {
     const category = document.getElementById('ws-filter-category').value;
-    const filtered = category
-        ? workingSetWords.filter(w => w.category === category)
-        : workingSetWords;
+    const bucket = document.getElementById('ws-filter-bucket').value;
+
+    let filtered = workingSetWords;
+
+    // Filter by category
+    if (category) {
+        filtered = filtered.filter(w => w.category === category);
+    }
+
+    // Filter by bucket (check if either direction matches the bucket)
+    if (bucket !== '') {
+        const bucketNum = parseInt(bucket);
+        filtered = filtered.filter(w =>
+            w.en_to_tr.box === bucketNum || w.tr_to_en.box === bucketNum
+        );
+    }
+
     renderWorkingSet(filtered);
 }
 
@@ -455,9 +477,23 @@ async function loadEntireSet() {
 // Filter entire set
 function filterEntireSet() {
     const category = document.getElementById('es-filter-category').value;
-    const filtered = category
-        ? entireSetWords.filter(w => w.category === category)
-        : entireSetWords;
+    const bucket = document.getElementById('es-filter-bucket').value;
+
+    let filtered = entireSetWords;
+
+    // Filter by category
+    if (category) {
+        filtered = filtered.filter(w => w.category === category);
+    }
+
+    // Filter by bucket (check if either direction matches the bucket)
+    if (bucket !== '') {
+        const bucketNum = parseInt(bucket);
+        filtered = filtered.filter(w =>
+            w.en_to_tr.box === bucketNum || w.tr_to_en.box === bucketNum
+        );
+    }
+
     renderEntireSet(filtered);
 }
 
