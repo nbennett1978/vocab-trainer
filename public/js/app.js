@@ -7,28 +7,205 @@ let currentWordData = null;
 let isPopupOpen = false;
 let lastSessionType = 'category';
 let lastSessionCategory = 'all';
+let currentUser = null;
 
 // Timer state
 let answerTimeout = 30; // Default, will be loaded from settings
 let timerInterval = null;
 let timeRemaining = 0;
 
+// Audio state
+let currentAudio = null;
+let isAudioPlaying = false;
+
 // DOM Elements
 const screens = {
+    login: document.getElementById('login-screen'),
     dashboard: document.getElementById('dashboard-screen'),
     training: document.getElementById('training-screen'),
     results: document.getElementById('results-screen'),
     noWords: document.getElementById('no-words-screen')
 };
 
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+function getToken() {
+    return localStorage.getItem('auth_token');
+}
+
+function setToken(token) {
+    localStorage.setItem('auth_token', token);
+}
+
+function clearToken() {
+    localStorage.removeItem('auth_token');
+}
+
+function setUser(user) {
+    currentUser = user;
+    localStorage.setItem('user', JSON.stringify(user));
+    updateUserDisplay();
+}
+
+function getUser() {
+    if (currentUser) return currentUser;
+    const stored = localStorage.getItem('user');
+    if (stored) {
+        currentUser = JSON.parse(stored);
+        return currentUser;
+    }
+    return null;
+}
+
+function clearUser() {
+    currentUser = null;
+    localStorage.removeItem('user');
+}
+
+function updateUserDisplay() {
+    const userDisplay = document.getElementById('user-display');
+    if (userDisplay && currentUser) {
+        userDisplay.textContent = currentUser.username;
+    }
+}
+
+// API fetch with auth header
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    if (token) {
+        options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    const response = await fetch(url, options);
+
+    // Handle 401/403 - redirect to login
+    if (response.status === 401 || response.status === 403) {
+        clearToken();
+        clearUser();
+        showScreen('login');
+        throw new Error('Session expired. Please login again.');
+    }
+
+    return response;
+}
+
+// Login function
+async function login(username, password) {
+    const errorEl = document.getElementById('login-error');
+    errorEl.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Login failed');
+        }
+
+        // Store token and user
+        setToken(data.token);
+        setUser(data.user);
+
+        // Redirect admin to admin panel, otherwise load learner dashboard
+        if (data.user.is_admin) {
+            window.location.href = '/admin';
+        } else {
+            loadDashboard();
+        }
+
+    } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.remove('hidden');
+    }
+}
+
+// Logout function
+async function logout() {
+    try {
+        await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+        // Ignore errors on logout
+    }
+
+    clearToken();
+    clearUser();
+    showScreen('login');
+}
+
+// Check if already logged in
+async function checkAuth() {
+    const token = getToken();
+    if (!token) {
+        showScreen('login');
+        return false;
+    }
+
+    try {
+        const response = await apiFetch('/api/auth/me');
+        const data = await response.json();
+
+        if (data.success && data.user) {
+            setUser(data.user);
+            return true;
+        }
+    } catch (e) {
+        // Token invalid
+    }
+
+    clearToken();
+    clearUser();
+    showScreen('login');
+    return false;
+}
+
 // Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-    loadDashboard();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Hide splash screen after 2 seconds
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('hidden');
+            // Remove from DOM after fade animation
+            setTimeout(() => splash.remove(), 500);
+        }
+    }, 2000);
+
     setupEventListeners();
+
+    // Check auth and load dashboard if logged in
+    const isAuthenticated = await checkAuth();
+    if (isAuthenticated) {
+        loadDashboard();
+    }
 });
 
 // Setup event listeners
 function setupEventListeners() {
+    // Login form
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+        login(username, password);
+    });
+
+    // Logout button
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+            logout();
+        }
+    });
+
     // Special session buttons (weak_words, review_mastered)
     document.querySelectorAll('.special-buttons .session-btn').forEach(btn => {
         btn.addEventListener('click', () => startSession(btn.dataset.type, 'all'));
@@ -78,6 +255,13 @@ function setupEventListeners() {
     document.getElementById('another-lesson').addEventListener('click', () => {
         startSession(lastSessionType, lastSessionCategory);
     });
+
+    // Audio repeat button
+    document.getElementById('audio-btn').addEventListener('click', () => {
+        if (currentWordData && currentWordData.direction === 'en_to_tr' && currentWordData.wordId) {
+            playWordAudio(currentWordData.wordId);
+        }
+    });
 }
 
 // Show screen
@@ -95,7 +279,7 @@ function setLoading(show) {
 async function loadDashboard() {
     setLoading(true);
     try {
-        const response = await fetch('/api/dashboard');
+        const response = await apiFetch('/api/dashboard');
         const data = await response.json();
 
         if (!data.success) {
@@ -154,8 +338,9 @@ async function loadDashboard() {
         // Render category evaluation
         renderCategoryProgress(categoryProgress || []);
 
-        // Load categories
+        // Load categories and leaderboard
         await loadCategories();
+        await loadLeaderboard();
 
         // Show appropriate screen
         if (totalWords === 0) {
@@ -175,7 +360,7 @@ async function loadDashboard() {
 // Load categories and render buttons
 async function loadCategories() {
     try {
-        const response = await fetch('/api/categories');
+        const response = await apiFetch('/api/categories');
         const data = await response.json();
 
         if (data.success && data.categoriesWithCounts) {
@@ -184,6 +369,44 @@ async function loadCategories() {
     } catch (error) {
         console.error('Categories load error:', error);
     }
+}
+
+// Load leaderboard
+async function loadLeaderboard() {
+    try {
+        const response = await apiFetch('/api/leaderboard');
+        const data = await response.json();
+
+        if (data.success && data.leaderboard) {
+            renderLeaderboard(data.leaderboard);
+        }
+    } catch (error) {
+        console.error('Leaderboard load error:', error);
+    }
+}
+
+// Render leaderboard
+function renderLeaderboard(leaderboard) {
+    const container = document.getElementById('leaderboard');
+
+    if (!leaderboard || leaderboard.length === 0) {
+        container.innerHTML = '<p class="no-data">Henüz sıralama yok</p>';
+        return;
+    }
+
+    container.innerHTML = leaderboard.map((entry) => {
+        const rank = entry.rank;
+        const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+
+        return `
+            <div class="leaderboard-item ${entry.isCurrentUser ? 'current-user' : ''}">
+                <span class="leaderboard-rank">${rankEmoji}</span>
+                <span class="leaderboard-name">${entry.username}</span>
+                <span class="leaderboard-stars">⭐ ${entry.totalStars}</span>
+                <span class="leaderboard-streak">🔥 ${entry.currentStreak}</span>
+            </div>
+        `;
+    }).join('');
 }
 
 // Render category buttons
@@ -229,7 +452,7 @@ async function startSession(type, category = 'all') {
     lastSessionType = type;
     lastSessionCategory = category;
     try {
-        const response = await fetch(`/api/session/start?type=${type}&category=${category}`);
+        const response = await apiFetch(`/api/session/start?type=${type}&category=${category}`);
         const data = await response.json();
 
         if (!data.success) {
@@ -316,6 +539,16 @@ function displayWord(wordData) {
     document.getElementById('next-btn').classList.add('hidden');
     isRetryMode = false;
 
+    // Handle audio for English words (en_to_tr direction only)
+    const audioBtn = document.getElementById('audio-btn');
+    if (isEnToTr && wordData.wordId) {
+        // Check if audio exists and show button accordingly
+        checkAndPlayAudio(wordData.wordId, audioBtn);
+    } else {
+        // Hide audio button for tr_to_en direction
+        audioBtn.style.display = 'none';
+    }
+
     // Start countdown timer
     startTimer();
 
@@ -370,9 +603,102 @@ function handleTimeUp() {
     handleDontKnow();
 }
 
+// Audio playback function using server-stored audio files
+async function playWordAudio(wordId) {
+    const audioBtn = document.getElementById('audio-btn');
+
+    // If already playing, stop current audio
+    if (currentAudio && isAudioPlaying) {
+        try {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        } catch (e) {
+            // Ignore errors when stopping
+        }
+    }
+
+    try {
+        // Add playing state to button
+        if (audioBtn) {
+            audioBtn.classList.add('playing');
+        }
+        isAudioPlaying = true;
+
+        // Create audio element with server URL
+        currentAudio = new Audio(`/api/audio/${wordId}`);
+
+        // Set up event listener for when audio ends
+        currentAudio.onended = () => {
+            isAudioPlaying = false;
+            if (audioBtn) {
+                audioBtn.classList.remove('playing');
+            }
+        };
+
+        // Handle errors (audio not found)
+        currentAudio.onerror = () => {
+            isAudioPlaying = false;
+            if (audioBtn) {
+                audioBtn.classList.remove('playing');
+            }
+        };
+
+        // Play the audio
+        await currentAudio.play();
+
+    } catch (error) {
+        console.error('Error playing audio:', error);
+        isAudioPlaying = false;
+        if (audioBtn) {
+            audioBtn.classList.remove('playing');
+        }
+    }
+}
+
+// Check if audio exists and auto-play if available
+async function checkAndPlayAudio(wordId, audioBtn) {
+    try {
+        const response = await apiFetch(`/api/audio/${wordId}/exists`);
+        const data = await response.json();
+
+        if (data.success && data.exists) {
+            // Show audio button and auto-play
+            audioBtn.style.display = 'inline-flex';
+            // Small delay to let the UI settle before playing
+            setTimeout(() => {
+                playWordAudio(wordId);
+            }, 300);
+        } else {
+            // No audio available, hide button
+            audioBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking audio:', error);
+        audioBtn.style.display = 'none';
+    }
+}
+
+// Stop any playing audio
+function stopAudio() {
+    if (currentAudio && isAudioPlaying) {
+        try {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        } catch (e) {
+            // Ignore errors
+        }
+    }
+    isAudioPlaying = false;
+    const audioBtn = document.getElementById('audio-btn');
+    if (audioBtn) {
+        audioBtn.classList.remove('playing');
+    }
+}
+
 // Handle "Don't Know" button click
 async function handleDontKnow() {
     stopTimer();
+    stopAudio();
 
     // Disable inputs
     document.getElementById('answer-input').disabled = true;
@@ -381,7 +707,7 @@ async function handleDontKnow() {
 
     try {
         // Submit empty answer to mark as incorrect
-        const response = await fetch('/api/session/answer', {
+        const response = await apiFetch('/api/session/answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -434,7 +760,7 @@ async function submitAnswer() {
     stopTimer();
 
     try {
-        const response = await fetch('/api/session/answer', {
+        const response = await apiFetch('/api/session/answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -517,6 +843,9 @@ async function submitAnswer() {
 
 // Next word
 function nextWord() {
+    // Stop any playing audio before moving to next word
+    stopAudio();
+
     if (currentSession.nextWord) {
         currentSession.currentIndex++;
         displayWord(currentSession.nextWord);
@@ -527,8 +856,9 @@ function nextWord() {
 // End session
 async function endSession() {
     stopTimer();
+    stopAudio();
     try {
-        const response = await fetch('/api/session/end', {
+        const response = await apiFetch('/api/session/end', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId: currentSession.id })

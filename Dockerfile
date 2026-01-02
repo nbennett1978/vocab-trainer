@@ -17,8 +17,8 @@ RUN npm install --production
 COPY server/ ./server/
 COPY public/ ./public/
 
-# Create data directory
-RUN mkdir -p /app/data/uploads
+# Create data and config directories
+RUN mkdir -p /app/data/uploads /app/data/audio /app/config
 
 # Expose port
 EXPOSE 3000

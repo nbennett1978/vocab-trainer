@@ -3,14 +3,122 @@
 let allWords = [];
 let workingSetWords = [];
 let entireSetWords = [];
+let currentUser = null;
+let selectedUserId = null; // For viewing specific user's progress
+let audioStatus = {}; // Track which words have audio files
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+function getToken() {
+    return localStorage.getItem('auth_token');
+}
+
+function setToken(token) {
+    localStorage.setItem('auth_token', token);
+}
+
+function clearToken() {
+    localStorage.removeItem('auth_token');
+}
+
+function setUser(user) {
+    currentUser = user;
+    localStorage.setItem('user', JSON.stringify(user));
+}
+
+function getUser() {
+    if (currentUser) return currentUser;
+    const stored = localStorage.getItem('user');
+    if (stored) {
+        currentUser = JSON.parse(stored);
+        return currentUser;
+    }
+    return null;
+}
+
+function clearUser() {
+    currentUser = null;
+    localStorage.removeItem('user');
+}
+
+// API fetch with auth header
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    if (token) {
+        options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    const response = await fetch(url, options);
+
+    // Handle 401/403 - redirect to login
+    if (response.status === 401 || response.status === 403) {
+        clearToken();
+        clearUser();
+        window.location.href = '/';
+        throw new Error('Session expired. Please login again.');
+    }
+
+    return response;
+}
+
+// Check if already logged in and is admin
+async function checkAuth() {
+    const token = getToken();
+    if (!token) {
+        window.location.href = '/';
+        return false;
+    }
+
+    try {
+        const response = await apiFetch('/api/auth/me');
+        const data = await response.json();
+
+        if (data.success && data.user && data.user.is_admin) {
+            setUser(data.user);
+            return true;
+        } else {
+            // Not admin - redirect to learner view
+            window.location.href = '/';
+            return false;
+        }
+    } catch (e) {
+        // Token invalid
+        clearToken();
+        clearUser();
+        window.location.href = '/';
+        return false;
+    }
+}
+
+// Logout function
+async function logout() {
+    try {
+        await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+        // Ignore errors on logout
+    }
+
+    clearToken();
+    clearUser();
+    window.location.href = '/';
+}
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check auth first
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) return;
+
     setupTabs();
     setupForms();
     loadCategories();
     loadWords();
-    loadWorkingSet();
+    loadUsers();
     loadProgress();
     loadSettings();
 });
@@ -29,6 +137,7 @@ function setupTabs() {
 
             // Refresh data when switching tabs
             if (btn.dataset.tab === 'words') loadWords();
+            if (btn.dataset.tab === 'users') loadUsersList();
             if (btn.dataset.tab === 'working-set') loadWorkingSet();
             if (btn.dataset.tab === 'entire-set') loadEntireSet();
             if (btn.dataset.tab === 'progress') loadProgress();
@@ -66,6 +175,18 @@ function setupForms() {
     // Reset progress button
     document.getElementById('reset-progress-btn').addEventListener('click', resetProgress);
 
+    // Add user form
+    document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await createUser();
+    });
+
+    // Reset password form
+    document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitResetPassword();
+    });
+
     // Search and filter
     document.getElementById('search-input').addEventListener('input', filterWords);
     document.getElementById('filter-category').addEventListener('change', filterWords);
@@ -92,7 +213,7 @@ function setupForms() {
 // Load categories from server
 async function loadCategories() {
     try {
-        const response = await fetch('/api/categories');
+        const response = await apiFetch('/api/categories');
         const data = await response.json();
 
         if (data.success) {
@@ -140,14 +261,28 @@ function capitalize(str) {
 // Load words
 async function loadWords() {
     try {
-        const response = await fetch('/admin/api/words');
-        const data = await response.json();
+        // Load words and audio status in parallel
+        const [wordsResponse, audioResponse] = await Promise.all([
+            apiFetch('/admin/api/words'),
+            apiFetch('/admin/api/audio/status')
+        ]);
 
-        if (data.success) {
-            allWords = data.words;
+        const wordsData = await wordsResponse.json();
+        const audioData = await audioResponse.json();
+
+        if (wordsData.success) {
+            allWords = wordsData.words;
             document.getElementById('word-count').textContent = allWords.length;
-            renderWords(allWords);
         }
+
+        if (audioData.success) {
+            audioStatus = audioData.audioStatus;
+        }
+
+        // Update audio stats display
+        updateAudioStats();
+
+        renderWords(allWords);
     } catch (error) {
         console.error('Load words error:', error);
     }
@@ -162,30 +297,72 @@ function renderWords(words) {
         return;
     }
 
-    container.innerHTML = words.map(word => `
-        <div class="word-item" data-id="${word.id}">
-            <div class="word-main">
-                <div class="word-english">${escapeHtml(word.english)}</div>
-                <div class="word-turkish">${escapeHtml(word.turkish)}</div>
-                ${word.example_sentence ? `<div class="word-sentence">${escapeHtml(word.example_sentence)}</div>` : ''}
+    container.innerHTML = words.map(word => {
+        const hasAudio = audioStatus[word.id] || false;
+        return `
+            <div class="word-item" data-id="${word.id}">
+                <div class="word-main">
+                    <div class="word-english">${escapeHtml(word.english)}</div>
+                    <div class="word-turkish">${escapeHtml(word.turkish)}</div>
+                    ${word.example_sentence ? `<div class="word-sentence">${escapeHtml(word.example_sentence)}</div>` : ''}
+                </div>
+                <div class="word-audio">
+                    ${hasAudio
+                        ? `<span class="audio-status has-audio" title="Has audio">🔊</span>
+                           <button class="btn btn-sm btn-icon" onclick="playAudio(${word.id})" title="Play">▶</button>
+                           <button class="btn btn-sm btn-icon btn-danger" onclick="deleteAudio(${word.id})" title="Delete audio">🗑</button>`
+                        : `<span class="audio-status no-audio" title="No audio">🔇</span>
+                           <button class="btn btn-sm btn-secondary" onclick="generateAudio(${word.id}, '${escapeHtml(word.english).replace(/'/g, "\\'")}')">Generate</button>`
+                    }
+                </div>
+                <span class="word-category">${word.category}</span>
+                <div class="word-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="editWord(${word.id})">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteWord(${word.id})">Delete</button>
+                </div>
             </div>
-            <span class="word-category">${word.category}</span>
-            <div class="word-progress">
-                ${word.progress.en_to_tr ? `EN→TR: Box ${word.progress.en_to_tr.box}` : ''}<br>
-                ${word.progress.tr_to_en ? `TR→EN: Box ${word.progress.tr_to_en.box}` : ''}
-            </div>
-            <div class="word-actions">
-                <button class="btn btn-secondary btn-sm" onclick="editWord(${word.id})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteWord(${word.id})">Delete</button>
-            </div>
-        </div>
+        `;
+    }).join('');
+}
+
+// Load users list
+async function loadUsers() {
+    try {
+        const response = await apiFetch('/admin/api/users');
+        const data = await response.json();
+
+        if (data.success) {
+            const users = data.users.filter(u => !u.is_admin);
+            // Set first user as selected if none selected
+            if (!selectedUserId && users.length > 0) {
+                selectedUserId = users[0].id;
+            }
+            renderUserSelector(users);
+            // Now load working set for selected user
+            loadWorkingSet();
+        }
+    } catch (error) {
+        console.error('Load users error:', error);
+    }
+}
+
+// Render user selector
+function renderUserSelector(users) {
+    const container = document.getElementById('user-selector');
+    if (!container) return;
+
+    container.innerHTML = users.map(user => `
+        <option value="${user.id}" ${user.id === selectedUserId ? 'selected' : ''}>
+            ${escapeHtml(user.username)} ${user.stats ? `(${user.stats.totalStars}⭐)` : ''}
+        </option>
     `).join('');
 }
 
 // Load working set
 async function loadWorkingSet() {
+    if (!selectedUserId) return;
     try {
-        const response = await fetch('/admin/api/working-set');
+        const response = await apiFetch(`/admin/api/working-set?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -227,8 +404,9 @@ function renderWorkingSet(words) {
 
 // Load entire set
 async function loadEntireSet() {
+    if (!selectedUserId) return;
     try {
-        const response = await fetch('/admin/api/entire-set');
+        const response = await apiFetch(`/admin/api/entire-set?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -322,7 +500,7 @@ async function addWord() {
     const sentence = document.getElementById('new-sentence').value.trim();
 
     try {
-        const response = await fetch('/admin/api/words', {
+        const response = await apiFetch('/admin/api/words', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -374,7 +552,7 @@ async function uploadFile() {
     if (category) formData.append('category', category);
 
     try {
-        const response = await fetch('/admin/api/words/upload', {
+        const response = await apiFetch('/admin/api/words/upload', {
             method: 'POST',
             body: formData
         });
@@ -407,9 +585,29 @@ async function uploadFile() {
 }
 
 // Edit word
-function editWord(id) {
+async function editWord(id) {
     const word = allWords.find(w => w.id === id);
     if (!word) return;
+
+    // Populate edit category dropdown with all existing categories
+    try {
+        const response = await apiFetch('/api/categories');
+        const data = await response.json();
+        if (data.success) {
+            const categories = data.categories.filter(c => c !== 'all');
+            const editCategorySelect = document.getElementById('edit-category');
+
+            // Build options including all existing categories
+            const defaultCategories = ['verb', 'noun', 'adjective', 'adverb', 'other'];
+            const allCategories = [...new Set([...defaultCategories, ...categories])].sort();
+
+            editCategorySelect.innerHTML = allCategories
+                .map(cat => `<option value="${cat}">${capitalize(cat)}</option>`)
+                .join('');
+        }
+    } catch (error) {
+        console.error('Error loading categories for edit:', error);
+    }
 
     document.getElementById('edit-id').value = word.id;
     document.getElementById('edit-english').value = word.english;
@@ -429,7 +627,7 @@ async function saveEdit() {
     const sentence = document.getElementById('edit-sentence').value.trim();
 
     try {
-        const response = await fetch(`/admin/api/words/${id}`, {
+        const response = await apiFetch(`/admin/api/words/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -466,7 +664,7 @@ async function deleteWord(id) {
     }
 
     try {
-        const response = await fetch(`/admin/api/words/${id}`, {
+        const response = await apiFetch(`/admin/api/words/${id}`, {
             method: 'DELETE'
         });
 
@@ -485,7 +683,7 @@ async function deleteWord(id) {
 // Load progress
 async function loadProgress() {
     try {
-        const response = await fetch('/admin/api/progress');
+        const response = await apiFetch('/admin/api/progress');
         const data = await response.json();
 
         if (data.success) {
@@ -600,7 +798,7 @@ async function resetProgress() {
     }
 
     try {
-        const response = await fetch('/admin/api/reset', {
+        const response = await apiFetch('/admin/api/reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ confirm: 'RESET' })
@@ -623,7 +821,7 @@ async function resetProgress() {
 // Load settings
 async function loadSettings() {
     try {
-        const response = await fetch('/admin/api/settings');
+        const response = await apiFetch('/admin/api/settings');
         const data = await response.json();
 
         if (data.success) {
@@ -650,7 +848,7 @@ async function saveSettings() {
     };
 
     try {
-        const response = await fetch('/admin/api/settings', {
+        const response = await apiFetch('/admin/api/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
@@ -665,6 +863,165 @@ async function saveSettings() {
         }
     } catch (error) {
         alert('Error saving settings: ' + error.message);
+    }
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+let allUsers = [];
+
+// Load users list for the Users tab
+async function loadUsersList() {
+    try {
+        const response = await apiFetch('/admin/api/users');
+        const data = await response.json();
+
+        if (data.success) {
+            allUsers = data.users;
+            document.getElementById('user-count').textContent = allUsers.length;
+            renderUsersList(allUsers);
+        }
+    } catch (error) {
+        console.error('Load users error:', error);
+    }
+}
+
+// Render users list
+function renderUsersList(users) {
+    const container = document.getElementById('users-list');
+
+    if (users.length === 0) {
+        container.innerHTML = '<p class="loading">No users found</p>';
+        return;
+    }
+
+    container.innerHTML = users.map(user => `
+        <div class="user-item" data-id="${user.id}">
+            <div class="user-main">
+                <div class="user-username">${escapeHtml(user.username)}</div>
+                <div class="user-role ${user.is_admin ? 'admin' : 'student'}">${user.is_admin ? 'Admin' : 'Student'}</div>
+            </div>
+            <div class="user-stats">
+                ${user.stats ? `
+                    <span class="stat">⭐ ${user.stats.totalStars}</span>
+                    <span class="stat">🔥 ${user.stats.currentStreak}</span>
+                    ${user.stats.lastActiveDate ? `<span class="stat">Last active: ${user.stats.lastActiveDate}</span>` : ''}
+                ` : '<span class="stat">No activity yet</span>'}
+            </div>
+            <div class="user-actions">
+                ${!user.is_admin ? `
+                    <button class="btn btn-secondary btn-sm" onclick="openResetModal(${user.id}, '${escapeHtml(user.username)}')">Reset Password</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')">Delete</button>
+                ` : '<span class="admin-badge">Protected</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Create new user
+async function createUser() {
+    const username = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('new-password').value;
+    const role = document.getElementById('new-role').value;
+
+    if (!username || !password) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    try {
+        const response = await apiFetch('/admin/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                password,
+                is_admin: role === 'admin'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`User "${username}" created successfully!`);
+            document.getElementById('add-user-form').reset();
+            loadUsersList();
+            loadUsers(); // Refresh user selector dropdowns
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error creating user: ' + error.message);
+    }
+}
+
+// Delete user
+async function deleteUser(userId, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"?\nThis will delete all their progress!`)) {
+        return;
+    }
+
+    try {
+        const response = await apiFetch(`/admin/api/users/${userId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`User "${username}" deleted successfully!`);
+            loadUsersList();
+            loadUsers(); // Refresh user selector dropdowns
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error deleting user: ' + error.message);
+    }
+}
+
+// Open reset password modal
+function openResetModal(userId, username) {
+    document.getElementById('reset-user-id').value = userId;
+    document.getElementById('reset-username').textContent = username;
+    document.getElementById('reset-new-password').value = '';
+    document.getElementById('reset-password-modal').classList.remove('hidden');
+}
+
+// Close reset password modal
+function closeResetModal() {
+    document.getElementById('reset-password-modal').classList.add('hidden');
+}
+
+// Submit reset password
+async function submitResetPassword() {
+    const userId = document.getElementById('reset-user-id').value;
+    const password = document.getElementById('reset-new-password').value;
+
+    if (!password || password.length < 4) {
+        alert('Password must be at least 4 characters');
+        return;
+    }
+
+    try {
+        const response = await apiFetch(`/admin/api/users/${userId}/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Password reset successfully!');
+            closeResetModal();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error resetting password: ' + error.message);
     }
 }
 
@@ -685,7 +1042,221 @@ function formatDate(dateString) {
     });
 }
 
+// ============================================
+// AUDIO FUNCTIONS
+// ============================================
+
+// Update audio stats display
+function updateAudioStats() {
+    const total = allWords.length;
+    const withAudio = Object.values(audioStatus).filter(Boolean).length;
+    const missing = total - withAudio;
+
+    const statsEl = document.getElementById('audio-stats');
+    const btnEl = document.getElementById('generate-all-audio-btn');
+
+    if (statsEl) {
+        statsEl.textContent = `${withAudio}/${total} with audio`;
+    }
+
+    if (btnEl) {
+        btnEl.disabled = missing === 0;
+        if (missing === 0) {
+            btnEl.textContent = '✓ All audio generated';
+        } else {
+            btnEl.textContent = `🔊 Generate All Audio (${missing})`;
+        }
+    }
+}
+
+// Play audio for a word
+function playAudio(wordId) {
+    const audio = new Audio(`/api/audio/${wordId}`);
+    audio.play().catch(err => console.error('Error playing audio:', err));
+}
+
+// Generate audio for a word using Puter TTS
+async function generateAudio(wordId, englishWord) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        // Use Puter TTS to generate audio
+        const audio = await puter.ai.txt2speech(englishWord, {
+            voice: "Joanna",
+            engine: "neural",
+            language: "en-US"
+        });
+
+        // Get the audio blob from the audio element
+        // Puter returns an Audio element with a blob URL
+        const response = await fetch(audio.src);
+        const blob = await response.blob();
+
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64data = reader.result.split(',')[1];
+
+            // Upload to server
+            const uploadResponse = await apiFetch(`/admin/api/words/${wordId}/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: base64data })
+            });
+
+            const result = await uploadResponse.json();
+
+            if (result.success) {
+                // Update local status and re-render
+                audioStatus[wordId] = true;
+                updateAudioStats();
+                filterWords();
+            } else {
+                alert('Failed to save audio: ' + result.error);
+            }
+        };
+        reader.readAsDataURL(blob);
+
+    } catch (error) {
+        console.error('Error generating audio:', error);
+        alert('Failed to generate audio: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+// Delete audio for a word
+async function deleteAudio(wordId) {
+    if (!confirm('Delete audio for this word?')) return;
+
+    try {
+        const response = await apiFetch(`/admin/api/words/${wordId}/audio`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update local status and re-render
+            audioStatus[wordId] = false;
+            updateAudioStats();
+            filterWords();
+        } else {
+            alert('Failed to delete audio: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error deleting audio:', error);
+        alert('Failed to delete audio: ' + error.message);
+    }
+}
+
+// Generate audio for all words that don't have audio
+async function generateAllAudio() {
+    // Get words without audio
+    const wordsWithoutAudio = allWords.filter(w => !audioStatus[w.id]);
+
+    if (wordsWithoutAudio.length === 0) {
+        alert('All words already have audio!');
+        return;
+    }
+
+    if (!confirm(`Generate audio for ${wordsWithoutAudio.length} words? This may take a while.`)) {
+        return;
+    }
+
+    const btn = document.getElementById('generate-all-audio-btn');
+    const progressDiv = document.getElementById('audio-progress');
+    const progressBar = document.getElementById('audio-progress-bar');
+    const progressText = document.getElementById('audio-progress-text');
+
+    btn.disabled = true;
+    progressDiv.classList.remove('hidden');
+
+    let completed = 0;
+    let failed = 0;
+    const total = wordsWithoutAudio.length;
+
+    for (const word of wordsWithoutAudio) {
+        try {
+            // Update progress display
+            progressText.textContent = `${completed + 1} / ${total}`;
+            progressBar.style.width = `${((completed + 1) / total) * 100}%`;
+
+            // Generate audio using Puter TTS
+            const audio = await puter.ai.txt2speech(word.english, {
+                voice: "Joanna",
+                engine: "neural",
+                language: "en-US"
+            });
+
+            // Get the audio blob
+            const response = await fetch(audio.src);
+            const blob = await response.blob();
+
+            // Convert to base64 and upload
+            const base64data = await blobToBase64(blob);
+
+            const uploadResponse = await apiFetch(`/admin/api/words/${word.id}/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: base64data })
+            });
+
+            const result = await uploadResponse.json();
+
+            if (result.success) {
+                audioStatus[word.id] = true;
+                completed++;
+            } else {
+                failed++;
+                console.error(`Failed to save audio for "${word.english}":`, result.error);
+            }
+
+        } catch (error) {
+            failed++;
+            console.error(`Failed to generate audio for "${word.english}":`, error);
+        }
+
+        // Small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Done - update UI
+    progressDiv.classList.add('hidden');
+    updateAudioStats();
+    filterWords();
+
+    if (failed > 0) {
+        alert(`Completed! ${completed} succeeded, ${failed} failed.`);
+    } else {
+        alert(`All ${completed} audio files generated successfully!`);
+    }
+}
+
+// Helper to convert blob to base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 // Make functions globally accessible
 window.editWord = editWord;
 window.deleteWord = deleteWord;
 window.closeModal = closeModal;
+window.openResetModal = openResetModal;
+window.closeResetModal = closeResetModal;
+window.deleteUser = deleteUser;
+window.playAudio = playAudio;
+window.generateAudio = generateAudio;
+window.deleteAudio = deleteAudio;
+window.generateAllAudio = generateAllAudio;

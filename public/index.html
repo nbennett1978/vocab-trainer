@@ -11,11 +11,45 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <img src="favicon.png" alt="Nursi's Kelime Trainer" class="splash-logo">
+        <h1 class="splash-title">Nursi's Kelime Trainer</h1>
+    </div>
+
     <div class="app-container">
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="login-logo">
+                    <img src="favicon.png" alt="Logo" class="login-logo-img">
+                </div>
+                <h1 class="login-title">Kelime Trainer</h1>
+                <form id="login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="login-username">Kullanıcı Adı</label>
+                        <input type="text" id="login-username" class="form-input" placeholder="Kullanıcı adınızı girin" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Şifre</label>
+                        <input type="password" id="login-password" class="form-input" placeholder="Şifrenizi girin" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error" class="login-error hidden"></div>
+                    <button type="submit" class="login-btn">Giriş Yap</button>
+                </form>
+            </div>
+        </div>
+
         <!-- Dashboard Screen -->
-        <div id="dashboard-screen" class="screen active">
+        <div id="dashboard-screen" class="screen">
             <header class="dashboard-header">
-                <h1>🌸 Nursi's Kelime Trainer 🌸</h1>
+                <div class="header-top">
+                    <h1>🌸 Kelime Trainer 🌸</h1>
+                    <div class="user-info">
+                        <span id="user-display" class="user-display"></span>
+                        <button id="logout-btn" class="logout-btn" title="Çıkış Yap">🚪</button>
+                    </div>
+                </div>
                 <div class="stats-bar">
                     <div class="stat-item">
                         <span class="stat-icon">⭐</span>
@@ -73,6 +107,14 @@
                     <h2>📅 Bu Hafta</h2>
                     <div id="weekly-boxes" class="weekly-boxes">
                         <!-- 7 day boxes will be rendered by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="leaderboard-section">
+                    <h2>🏆 Sıralama</h2>
+                    <div id="leaderboard" class="leaderboard">
+                        <!-- Leaderboard will be rendered by JavaScript -->
                     </div>
                 </div>
 
@@ -142,7 +184,12 @@
                 <!-- Question Card -->
                 <div class="question-card">
                     <div id="example-sentence" class="example-sentence"></div>
-                    <div id="question-word" class="question-word">word</div>
+                    <div class="word-with-audio">
+                        <div id="question-word" class="question-word">word</div>
+                        <button id="audio-btn" class="audio-btn" title="Hear pronunciation" style="display: none;">
+                            🔊
+                        </button>
+                    </div>
                     <div id="category-badge" class="category-badge">verb</div>
                 </div>
 

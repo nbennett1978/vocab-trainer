@@ -1,16 +1,22 @@
 # Dependencies
 node_modules/
 
+
 # Database and user data
 #data/
 *.db
 *.db-shm
 *.db-wal
+data/audio/
+data/uploads/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+
+# Config with secrets (keep .example)
+config/admin.json
 
 # Logs
 logs/

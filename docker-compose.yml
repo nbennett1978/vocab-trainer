@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  vocab-trainer:
+    build: .
+    container_name: vocab-trainer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/categories"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

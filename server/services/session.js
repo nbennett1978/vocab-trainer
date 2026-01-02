@@ -14,26 +14,28 @@ const { validateAnswer, ValidationResult, processExampleSentence } = require('./
 const { getTodayDate, getCurrentDateTime, isYesterday } = require('../utils/timezone');
 
 // Active sessions storage (in-memory for simplicity)
+// Key format: `${userId}_${sessionId}`
 const activeSessions = new Map();
 
-// Start a new training session
-function startSession(sessionType, categoryFilter = 'all') {
+// Start a new training session for a user
+function startSession(userId, sessionType, categoryFilter = 'all') {
     // Randomly choose direction for this session (or alternate)
     const direction = Math.random() > 0.5 ? 'en_to_tr' : 'tr_to_en';
 
     // Select words for the session
-    const words = selectWordsForSession(sessionType, categoryFilter, direction);
+    const words = selectWordsForSession(userId, sessionType, categoryFilter, direction);
 
     if (words.length === 0) {
         return {
             success: false,
             error: 'No words available for this session type',
-            allMastered: getProgressStats().fullyMastered > 0
+            allMastered: getProgressStats(userId).fullyMastered > 0
         };
     }
 
     // Create session record
     const sessionResult = sessionOperations.insert.run({
+        user_id: userId,
         started_at: getCurrentDateTime(),
         session_type: sessionType,
         category_filter: categoryFilter
@@ -44,6 +46,7 @@ function startSession(sessionType, categoryFilter = 'all') {
     // Prepare session data
     const sessionData = {
         id: sessionId,
+        userId,
         direction,
         sessionType,
         categoryFilter,
@@ -65,8 +68,8 @@ function startSession(sessionType, categoryFilter = 'all') {
         startedAt: new Date()
     };
 
-    // Store in active sessions
-    activeSessions.set(sessionId, sessionData);
+    // Store in active sessions (keyed by both userId and sessionId for security)
+    activeSessions.set(`${userId}_${sessionId}`, sessionData);
 
     // Return first question
     return {
@@ -106,6 +109,7 @@ function prepareWordForClient(sessionData) {
         index: sessionData.currentIndex,
         total: sessionData.words.length,
         direction,
+        wordId: word.wordId,
         question: direction === 'en_to_tr' ? word.english : word.turkish,
         english: word.english,
         turkish: word.turkish,
@@ -123,8 +127,8 @@ function prepareWordForClient(sessionData) {
 }
 
 // Submit an answer
-function submitAnswer(sessionId, userAnswer, isRetry = false) {
-    const session = activeSessions.get(sessionId);
+function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
+    const session = activeSessions.get(`${userId}_${sessionId}`);
     if (!session) {
         return { success: false, error: 'Session not found' };
     }
@@ -185,6 +189,7 @@ function submitAnswer(sessionId, userAnswer, isRetry = false) {
     if (word.isNew) {
         const today = getTodayDate();
         dailyActivityOperations.upsert.run({
+            user_id: userId,
             date: today,
             sessions_completed: 0,
             words_introduced: 1,
@@ -215,8 +220,8 @@ function submitAnswer(sessionId, userAnswer, isRetry = false) {
 }
 
 // End a session
-function endSession(sessionId) {
-    const session = activeSessions.get(sessionId);
+function endSession(userId, sessionId) {
+    const session = activeSessions.get(`${userId}_${sessionId}`);
     if (!session) {
         return { success: false, error: 'Session not found' };
     }
@@ -240,6 +245,7 @@ function endSession(sessionId) {
 
     // Update daily activity
     dailyActivityOperations.upsert.run({
+        user_id: userId,
         date: today,
         sessions_completed: 1,
         words_introduced: 0,
@@ -247,16 +253,16 @@ function endSession(sessionId) {
     });
 
     // Update learner stats
-    updateLearnerStats(today, starsEarned);
+    updateLearnerStats(userId, today, starsEarned);
 
     // Check for new achievements
-    const newAchievements = checkAchievements();
+    const newAchievements = checkAchievements(userId);
 
     // Clean up active session
-    activeSessions.delete(sessionId);
+    activeSessions.delete(`${userId}_${sessionId}`);
 
     // Get updated progress stats
-    const progressStats = getProgressStats();
+    const progressStats = getProgressStats(userId);
 
     return {
         success: true,
@@ -272,8 +278,13 @@ function endSession(sessionId) {
 }
 
 // Update learner stats (streak, stars)
-function updateLearnerStats(today, starsEarned) {
-    const stats = learnerStatsOperations.get.get();
+function updateLearnerStats(userId, today, starsEarned) {
+    const stats = learnerStatsOperations.get.get(userId) || {
+        total_stars: 0,
+        current_streak: 0,
+        longest_streak: 0,
+        last_active_date: null
+    };
 
     let newStreak = stats.current_streak;
     let longestStreak = stats.longest_streak;
@@ -295,7 +306,8 @@ function updateLearnerStats(today, starsEarned) {
         longestStreak = 1;
     }
 
-    learnerStatsOperations.update.run({
+    learnerStatsOperations.upsert.run({
+        user_id: userId,
         total_stars: stats.total_stars + starsEarned,
         current_streak: newStreak,
         longest_streak: longestStreak,
@@ -304,9 +316,9 @@ function updateLearnerStats(today, starsEarned) {
 }
 
 // Check and award achievements
-function checkAchievements() {
+function checkAchievements(userId) {
     const newAchievements = [];
-    const progressStats = getProgressStats();
+    const progressStats = getProgressStats(userId);
     const fullyMastered = progressStats.fullyMastered;
 
     // Achievement milestones: every 5 fully mastered words
@@ -315,10 +327,11 @@ function checkAchievements() {
     for (const milestone of milestones) {
         if (fullyMastered >= milestone) {
             const achievementType = `mastered_${milestone}`;
-            const existing = achievementOperations.getByType.get(achievementType);
+            const existing = achievementOperations.getByType.get(userId, achievementType);
 
             if (!existing) {
                 achievementOperations.insert.run({
+                    user_id: userId,
                     type: achievementType,
                     data: JSON.stringify({ count: milestone })
                 });
@@ -332,16 +345,17 @@ function checkAchievements() {
     }
 
     // Streak achievements
-    const stats = learnerStatsOperations.get.get();
+    const stats = learnerStatsOperations.get.get(userId) || { current_streak: 0 };
     const streakMilestones = [3, 7, 14, 30, 60, 100];
 
     for (const streak of streakMilestones) {
         if (stats.current_streak >= streak) {
             const achievementType = `streak_${streak}`;
-            const existing = achievementOperations.getByType.get(achievementType);
+            const existing = achievementOperations.getByType.get(userId, achievementType);
 
             if (!existing) {
                 achievementOperations.insert.run({
+                    user_id: userId,
                     type: achievementType,
                     data: JSON.stringify({ days: streak })
                 });
@@ -391,8 +405,8 @@ function getStreakMessage(days) {
 }
 
 // Get current session state (for reconnection)
-function getSessionState(sessionId) {
-    const session = activeSessions.get(sessionId);
+function getSessionState(userId, sessionId) {
+    const session = activeSessions.get(`${userId}_${sessionId}`);
     if (!session) return null;
 
     return {

@@ -53,6 +53,55 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logout-btn {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.logout-btn:hover {
+    background: #dc2626;
+}
+
+/* User Selector */
+.user-selector-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.user-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-selector-wrapper label {
+    font-weight: 500;
+    color: var(--text-light);
+}
+
+.user-selector-wrapper select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
 .admin-header h1 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -325,6 +374,90 @@ body {
 .word-actions {
     display: flex;
     gap: 8px;
+}
+
+/* Word audio controls */
+.word-audio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 130px;
+}
+
+.audio-status {
+    font-size: 1.2rem;
+}
+
+.audio-status.has-audio {
+    color: var(--success);
+}
+
+.audio-status.no-audio {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.btn-icon {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    min-width: auto;
+}
+
+/* Section header with actions */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.audio-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.audio-stats {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.audio-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.audio-progress .progress-bar-container {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.audio-progress .progress-bar {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+#audio-progress-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    min-width: 80px;
+    text-align: right;
 }
 
 /* Stats grid */
@@ -665,4 +798,90 @@ body {
         width: 100%;
         margin-top: 8px;
     }
+}
+
+/* Users List Styles */
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.user-main {
+    flex: 1;
+    min-width: 150px;
+}
+
+.user-username {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.user-role {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+.user-role.admin {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.user-role.student {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.user-stats {
+    flex: 2;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.user-stats .stat {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.user-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-badge {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.user-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Modal styling for reset password */
+#reset-password-modal .modal-content {
+    max-width: 400px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
 }

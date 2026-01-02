@@ -9,16 +9,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/admin.css">
+    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
     <div class="admin-container">
         <header class="admin-header">
             <h1>📚 Vocabulary Trainer Admin</h1>
-            <a href="/" class="learner-link">→ Learner View</a>
+            <div class="header-actions">
+                <a href="/" class="learner-link">→ Learner View</a>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
         </header>
 
         <nav class="admin-nav">
             <button class="nav-btn active" data-tab="words">Words</button>
+            <button class="nav-btn" data-tab="users">Users</button>
             <button class="nav-btn" data-tab="working-set">Working Set</button>
             <button class="nav-btn" data-tab="entire-set">Entire Set</button>
             <button class="nav-btn" data-tab="progress">Progress</button>
@@ -84,7 +89,21 @@
             </div>
 
             <div class="section">
-                <h2>Word List (<span id="word-count">0</span> words)</h2>
+                <div class="section-header">
+                    <h2>Word List (<span id="word-count">0</span> words)</h2>
+                    <div class="audio-bulk-actions">
+                        <span id="audio-stats" class="audio-stats"></span>
+                        <button id="generate-all-audio-btn" class="btn btn-secondary" onclick="generateAllAudio()">
+                            🔊 Generate All Audio
+                        </button>
+                    </div>
+                </div>
+                <div id="audio-progress" class="audio-progress hidden">
+                    <div class="progress-bar-container">
+                        <div id="audio-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <span id="audio-progress-text">0 / 0</span>
+                </div>
                 <div class="filter-bar">
                     <input type="text" id="search-input" placeholder="Search words...">
                     <select id="filter-category">
@@ -97,10 +116,73 @@
             </div>
         </div>
 
+        <!-- Users Tab -->
+        <div id="users-tab" class="tab-content">
+            <div class="section">
+                <h2>Add New User</h2>
+                <form id="add-user-form" class="user-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="new-username" required placeholder="username" minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="new-password" required placeholder="password" minlength="4">
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select id="new-role">
+                                <option value="student">Student</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h2>User List (<span id="user-count">0</span> users)</h2>
+                <div id="users-list" class="users-list">
+                    <p class="loading">Loading users...</p>
+                </div>
+            </div>
+
+            <!-- Reset Password Modal -->
+            <div id="reset-password-modal" class="modal hidden">
+                <div class="modal-content">
+                    <h3>Reset Password</h3>
+                    <form id="reset-password-form">
+                        <input type="hidden" id="reset-user-id">
+                        <div class="form-group">
+                            <label>Username: <span id="reset-username"></span></label>
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="reset-new-password" required minlength="4" placeholder="Enter new password">
+                        </div>
+                        <div class="modal-buttons">
+                            <button type="button" class="btn btn-secondary" onclick="closeResetModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- Working Set Tab -->
         <div id="working-set-tab" class="tab-content">
             <div class="section">
-                <h2>📖 Current Working Set</h2>
+                <div class="user-selector-row">
+                    <h2>📖 Current Working Set</h2>
+                    <div class="user-selector-wrapper">
+                        <label>Student:</label>
+                        <select id="user-selector" onchange="selectedUserId = parseInt(this.value); loadWorkingSet();">
+                            <!-- Users will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
                 <p class="help-text">These are the words currently being learned. New words are added when success rate exceeds 60%.</p>
                 <div class="working-set-stats">
                     <div class="stat-card">

@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 
 const {
+    userOperations,
     learnerStatsOperations,
     achievementOperations,
     dailyActivityOperations,
@@ -13,19 +14,72 @@ const {
 const { getProgressStats, areAllWordsMastered, getReviewWordCount } = require('../services/leitner');
 const { startSession, submitAnswer, endSession, getSessionState } = require('../services/session');
 const { getTodayDate, daysSince } = require('../utils/timezone');
+const { authenticateToken } = require('../middleware/auth');
+
+// ============================================
+// PUBLIC AUDIO ENDPOINTS (no auth required)
+// ============================================
+
+const path = require('path');
+const fs = require('fs');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
+const AUDIO_DIR = path.join(DATA_DIR, 'audio');
+
+// Get audio file for a word (public - no auth needed for HTML5 Audio)
+router.get('/audio/:wordId', (req, res) => {
+    try {
+        const wordId = parseInt(req.params.wordId);
+        const audioPath = path.join(AUDIO_DIR, `${wordId}.mp3`);
+
+        if (fs.existsSync(audioPath)) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            fs.createReadStream(audioPath).pipe(res);
+        } else {
+            res.status(404).json({ success: false, error: 'Audio not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Check if audio exists for a word (public)
+router.get('/audio/:wordId/exists', (req, res) => {
+    try {
+        const wordId = parseInt(req.params.wordId);
+        const audioPath = path.join(AUDIO_DIR, `${wordId}.mp3`);
+        res.json({ success: true, exists: fs.existsSync(audioPath) });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
+// AUTHENTICATED ROUTES
+// ============================================
+
+// All routes below require authentication
+router.use(authenticateToken);
 
 // Get dashboard data
 router.get('/dashboard', (req, res) => {
     try {
-        const stats = learnerStatsOperations.get.get();
-        const achievements = achievementOperations.getAll.all();
-        const progressStats = getProgressStats();
-        const recentActivity = dailyActivityOperations.getRecent.all(7);
+        const userId = req.user.id;
+
+        const stats = learnerStatsOperations.get.get(userId) || {
+            total_stars: 0,
+            current_streak: 0,
+            longest_streak: 0,
+            last_active_date: null
+        };
+        const achievements = achievementOperations.getAll.all(userId);
+        const progressStats = getProgressStats(userId);
+        const recentActivity = dailyActivityOperations.getRecent.all(userId, 7);
         const wordCount = wordOperations.count.get();
         const quickLessonCount = parseInt(settingsOperations.get.get('quick_lesson_count')?.value || '5');
         const answerTimeout = parseInt(settingsOperations.get.get('answer_timeout')?.value || '30');
-        const reviewWordCount = getReviewWordCount();
-        const categoryProgress = wordOperations.getCategoryProgress.all();
+        const reviewWordCount = getReviewWordCount(userId);
+        const categoryProgress = wordOperations.getCategoryProgress.all(userId, userId);
 
         // Check for inactivity message
         let inactivityMessage = null;
@@ -37,7 +91,7 @@ router.get('/dashboard', (req, res) => {
         }
 
         // Check if all words are mastered
-        const allMastered = areAllWordsMastered();
+        const allMastered = areAllWordsMastered(userId);
 
         res.json({
             success: true,
@@ -61,11 +115,46 @@ router.get('/dashboard', (req, res) => {
                 quickLessonCount,
                 answerTimeout,
                 reviewWordCount,
-                categoryProgress
+                categoryProgress,
+                user: {
+                    id: req.user.id,
+                    username: req.user.username
+                }
             }
         });
     } catch (error) {
         console.error('Dashboard error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get leaderboard
+router.get('/leaderboard', (req, res) => {
+    try {
+        const leaderboard = userOperations.getLeaderboard.all();
+        const currentUserId = req.user.id;
+
+        // Find current user's rank
+        let currentUserRank = null;
+        leaderboard.forEach((user, index) => {
+            if (user.id === currentUserId) {
+                currentUserRank = index + 1;
+            }
+        });
+
+        res.json({
+            success: true,
+            leaderboard: leaderboard.map((user, index) => ({
+                rank: index + 1,
+                username: user.username,
+                totalStars: user.total_stars,
+                currentStreak: user.current_streak,
+                isCurrentUser: user.id === currentUserId
+            })),
+            currentUserRank
+        });
+    } catch (error) {
+        console.error('Leaderboard error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -88,6 +177,7 @@ router.get('/categories', (req, res) => {
 // Start a new session
 router.get('/session/start', (req, res) => {
     try {
+        const userId = req.user.id;
         const { type = 'quick', category = 'all' } = req.query;
 
         // Validate session type
@@ -96,7 +186,7 @@ router.get('/session/start', (req, res) => {
             return res.status(400).json({ success: false, error: 'Invalid session type' });
         }
 
-        const result = startSession(type, category);
+        const result = startSession(userId, type, category);
         res.json(result);
     } catch (error) {
         console.error('Start session error:', error);
@@ -107,13 +197,14 @@ router.get('/session/start', (req, res) => {
 // Submit an answer
 router.post('/session/answer', (req, res) => {
     try {
+        const userId = req.user.id;
         const { sessionId, answer, isRetry = false } = req.body;
 
         if (!sessionId || answer === undefined) {
             return res.status(400).json({ success: false, error: 'Missing sessionId or answer' });
         }
 
-        const result = submitAnswer(sessionId, answer, isRetry);
+        const result = submitAnswer(userId, sessionId, answer, isRetry);
         res.json(result);
     } catch (error) {
         console.error('Submit answer error:', error);
@@ -124,13 +215,14 @@ router.post('/session/answer', (req, res) => {
 // End a session
 router.post('/session/end', (req, res) => {
     try {
+        const userId = req.user.id;
         const { sessionId } = req.body;
 
         if (!sessionId) {
             return res.status(400).json({ success: false, error: 'Missing sessionId' });
         }
 
-        const result = endSession(sessionId);
+        const result = endSession(userId, sessionId);
         res.json(result);
     } catch (error) {
         console.error('End session error:', error);
@@ -141,8 +233,9 @@ router.post('/session/end', (req, res) => {
 // Get session state (for reconnection)
 router.get('/session/:sessionId', (req, res) => {
     try {
+        const userId = req.user.id;
         const sessionId = parseInt(req.params.sessionId);
-        const state = getSessionState(sessionId);
+        const state = getSessionState(userId, sessionId);
 
         if (!state) {
             return res.status(404).json({ success: false, error: 'Session not found' });
