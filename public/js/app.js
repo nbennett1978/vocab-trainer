@@ -14,6 +14,9 @@ let answerTimeout = 30; // Default, will be loaded from settings
 let timerInterval = null;
 let timeRemaining = 0;
 
+// Timezone - will be loaded from settings
+let appTimezone = 'Europe/Istanbul';
+
 // Audio state
 let currentAudio = null;
 let isAudioPlaying = false;
@@ -286,11 +289,14 @@ async function loadDashboard() {
             throw new Error(data.error);
         }
 
-        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress, answerTimeout: timeout } = data.data;
+        const { stats, progress, recentActivity, totalWords, allMastered, inactivityMessage, reviewWordCount, categoryProgress, answerTimeout: timeout, timezone } = data.data;
 
-        // Store answer timeout setting
+        // Store settings
         if (timeout) {
             answerTimeout = timeout;
+        }
+        if (timezone) {
+            appTimezone = timezone;
         }
 
         // Update stats
@@ -1011,14 +1017,14 @@ function renderCategoryProgress(categoryProgress) {
     container.innerHTML = rows + totalRow;
 }
 
-// Helper to get date string in GMT+3 (Europe/Istanbul)
-function getDateInIstanbul(date) {
-    return date.toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+// Helper to get date string in configured timezone
+function getDateInTimezone(date) {
+    return date.toLocaleDateString('sv-SE', { timeZone: appTimezone });
 }
 
-// Helper to get day of week in GMT+3
-function getDayOfWeekInIstanbul(date) {
-    return parseInt(date.toLocaleDateString('en-US', { timeZone: 'Europe/Istanbul', weekday: 'numeric' })) % 7;
+// Helper to get day of week in configured timezone
+function getDayOfWeekInTimezone(date) {
+    return parseInt(date.toLocaleDateString('en-US', { timeZone: appTimezone, weekday: 'numeric' })) % 7;
 }
 
 // Render weekly activity tracker
@@ -1026,15 +1032,15 @@ function renderWeeklyTracker(recentActivity) {
     const container = document.getElementById('weekly-boxes');
     const dayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
-    // Get last 7 days (today is rightmost) - using GMT+3 timezone
+    // Get last 7 days (today is rightmost) - using configured timezone
     const days = [];
     const now = new Date();
-    const todayStr = getDateInIstanbul(now);
+    const todayStr = getDateInTimezone(now);
 
     for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dateStr = getDateInIstanbul(date);
+        const dateStr = getDateInTimezone(date);
         const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
 
         // Find activity for this date

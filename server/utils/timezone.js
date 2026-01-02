@@ -1,11 +1,19 @@
-// Timezone utilities for GMT+3 (Turkey)
+// Timezone utilities - configurable via admin settings
 
-const TIMEZONE = 'Europe/Istanbul';
+const { settingsOperations } = require('../db/database');
 
-// Get current date in GMT+3 as YYYY-MM-DD string
+const DEFAULT_TIMEZONE = 'Europe/Istanbul';
+
+// Get configured timezone from settings
+function getTimezone() {
+    const setting = settingsOperations.get.get('timezone');
+    return setting?.value || DEFAULT_TIMEZONE;
+}
+
+// Get current date in configured timezone as YYYY-MM-DD string
 function getTodayDate() {
     const now = new Date();
-    return now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+    return now.toLocaleDateString('sv-SE', { timeZone: getTimezone() });
 }
 
 // Get current datetime in GMT+3 as ISO string
@@ -44,7 +52,8 @@ function daysSince(dateString) {
 }
 
 module.exports = {
-    TIMEZONE,
+    DEFAULT_TIMEZONE,
+    getTimezone,
     getTodayDate,
     getCurrentDateTime,
     isToday,

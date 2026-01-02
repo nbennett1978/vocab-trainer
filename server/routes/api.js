@@ -13,7 +13,7 @@ const {
 } = require('../db/database');
 const { getProgressStats, areAllWordsMastered, getReviewWordCount } = require('../services/leitner');
 const { startSession, submitAnswer, endSession, getSessionState } = require('../services/session');
-const { getTodayDate, daysSince } = require('../utils/timezone');
+const { getTodayDate, daysSince, getTimezone } = require('../utils/timezone');
 const { authenticateToken } = require('../middleware/auth');
 
 // ============================================
@@ -116,6 +116,7 @@ router.get('/dashboard', (req, res) => {
                 answerTimeout,
                 reviewWordCount,
                 categoryProgress,
+                timezone: getTimezone(),
                 user: {
                     id: req.user.id,
                     username: req.user.username
