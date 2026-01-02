@@ -5,6 +5,7 @@ let workingSetWords = [];
 let entireSetWords = [];
 let currentUser = null;
 let selectedUserId = null; // For viewing specific user's progress
+let audioStatus = {}; // Track which words have audio files
 
 // ============================================
 // AUTHENTICATION
@@ -260,14 +261,28 @@ function capitalize(str) {
 // Load words
 async function loadWords() {
     try {
-        const response = await apiFetch('/admin/api/words');
-        const data = await response.json();
+        // Load words and audio status in parallel
+        const [wordsResponse, audioResponse] = await Promise.all([
+            apiFetch('/admin/api/words'),
+            apiFetch('/admin/api/audio/status')
+        ]);
 
-        if (data.success) {
-            allWords = data.words;
+        const wordsData = await wordsResponse.json();
+        const audioData = await audioResponse.json();
+
+        if (wordsData.success) {
+            allWords = wordsData.words;
             document.getElementById('word-count').textContent = allWords.length;
-            renderWords(allWords);
         }
+
+        if (audioData.success) {
+            audioStatus = audioData.audioStatus;
+        }
+
+        // Update audio stats display
+        updateAudioStats();
+
+        renderWords(allWords);
     } catch (error) {
         console.error('Load words error:', error);
     }
@@ -282,20 +297,32 @@ function renderWords(words) {
         return;
     }
 
-    container.innerHTML = words.map(word => `
-        <div class="word-item" data-id="${word.id}">
-            <div class="word-main">
-                <div class="word-english">${escapeHtml(word.english)}</div>
-                <div class="word-turkish">${escapeHtml(word.turkish)}</div>
-                ${word.example_sentence ? `<div class="word-sentence">${escapeHtml(word.example_sentence)}</div>` : ''}
+    container.innerHTML = words.map(word => {
+        const hasAudio = audioStatus[word.id] || false;
+        return `
+            <div class="word-item" data-id="${word.id}">
+                <div class="word-main">
+                    <div class="word-english">${escapeHtml(word.english)}</div>
+                    <div class="word-turkish">${escapeHtml(word.turkish)}</div>
+                    ${word.example_sentence ? `<div class="word-sentence">${escapeHtml(word.example_sentence)}</div>` : ''}
+                </div>
+                <div class="word-audio">
+                    ${hasAudio
+                        ? `<span class="audio-status has-audio" title="Has audio">🔊</span>
+                           <button class="btn btn-sm btn-icon" onclick="playAudio(${word.id})" title="Play">▶</button>
+                           <button class="btn btn-sm btn-icon btn-danger" onclick="deleteAudio(${word.id})" title="Delete audio">🗑</button>`
+                        : `<span class="audio-status no-audio" title="No audio">🔇</span>
+                           <button class="btn btn-sm btn-secondary" onclick="generateAudio(${word.id}, '${escapeHtml(word.english).replace(/'/g, "\\'")}')">Generate</button>`
+                    }
+                </div>
+                <span class="word-category">${word.category}</span>
+                <div class="word-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="editWord(${word.id})">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteWord(${word.id})">Delete</button>
+                </div>
             </div>
-            <span class="word-category">${word.category}</span>
-            <div class="word-actions">
-                <button class="btn btn-secondary btn-sm" onclick="editWord(${word.id})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteWord(${word.id})">Delete</button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Load users list
@@ -1015,6 +1042,213 @@ function formatDate(dateString) {
     });
 }
 
+// ============================================
+// AUDIO FUNCTIONS
+// ============================================
+
+// Update audio stats display
+function updateAudioStats() {
+    const total = allWords.length;
+    const withAudio = Object.values(audioStatus).filter(Boolean).length;
+    const missing = total - withAudio;
+
+    const statsEl = document.getElementById('audio-stats');
+    const btnEl = document.getElementById('generate-all-audio-btn');
+
+    if (statsEl) {
+        statsEl.textContent = `${withAudio}/${total} with audio`;
+    }
+
+    if (btnEl) {
+        btnEl.disabled = missing === 0;
+        if (missing === 0) {
+            btnEl.textContent = '✓ All audio generated';
+        } else {
+            btnEl.textContent = `🔊 Generate All Audio (${missing})`;
+        }
+    }
+}
+
+// Play audio for a word
+function playAudio(wordId) {
+    const audio = new Audio(`/api/audio/${wordId}`);
+    audio.play().catch(err => console.error('Error playing audio:', err));
+}
+
+// Generate audio for a word using Puter TTS
+async function generateAudio(wordId, englishWord) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        // Use Puter TTS to generate audio
+        const audio = await puter.ai.txt2speech(englishWord, {
+            voice: "Joanna",
+            engine: "neural",
+            language: "en-US"
+        });
+
+        // Get the audio blob from the audio element
+        // Puter returns an Audio element with a blob URL
+        const response = await fetch(audio.src);
+        const blob = await response.blob();
+
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64data = reader.result.split(',')[1];
+
+            // Upload to server
+            const uploadResponse = await apiFetch(`/admin/api/words/${wordId}/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: base64data })
+            });
+
+            const result = await uploadResponse.json();
+
+            if (result.success) {
+                // Update local status and re-render
+                audioStatus[wordId] = true;
+                updateAudioStats();
+                filterWords();
+            } else {
+                alert('Failed to save audio: ' + result.error);
+            }
+        };
+        reader.readAsDataURL(blob);
+
+    } catch (error) {
+        console.error('Error generating audio:', error);
+        alert('Failed to generate audio: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+// Delete audio for a word
+async function deleteAudio(wordId) {
+    if (!confirm('Delete audio for this word?')) return;
+
+    try {
+        const response = await apiFetch(`/admin/api/words/${wordId}/audio`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update local status and re-render
+            audioStatus[wordId] = false;
+            updateAudioStats();
+            filterWords();
+        } else {
+            alert('Failed to delete audio: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error deleting audio:', error);
+        alert('Failed to delete audio: ' + error.message);
+    }
+}
+
+// Generate audio for all words that don't have audio
+async function generateAllAudio() {
+    // Get words without audio
+    const wordsWithoutAudio = allWords.filter(w => !audioStatus[w.id]);
+
+    if (wordsWithoutAudio.length === 0) {
+        alert('All words already have audio!');
+        return;
+    }
+
+    if (!confirm(`Generate audio for ${wordsWithoutAudio.length} words? This may take a while.`)) {
+        return;
+    }
+
+    const btn = document.getElementById('generate-all-audio-btn');
+    const progressDiv = document.getElementById('audio-progress');
+    const progressBar = document.getElementById('audio-progress-bar');
+    const progressText = document.getElementById('audio-progress-text');
+
+    btn.disabled = true;
+    progressDiv.classList.remove('hidden');
+
+    let completed = 0;
+    let failed = 0;
+    const total = wordsWithoutAudio.length;
+
+    for (const word of wordsWithoutAudio) {
+        try {
+            // Update progress display
+            progressText.textContent = `${completed + 1} / ${total}`;
+            progressBar.style.width = `${((completed + 1) / total) * 100}%`;
+
+            // Generate audio using Puter TTS
+            const audio = await puter.ai.txt2speech(word.english, {
+                voice: "Joanna",
+                engine: "neural",
+                language: "en-US"
+            });
+
+            // Get the audio blob
+            const response = await fetch(audio.src);
+            const blob = await response.blob();
+
+            // Convert to base64 and upload
+            const base64data = await blobToBase64(blob);
+
+            const uploadResponse = await apiFetch(`/admin/api/words/${word.id}/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: base64data })
+            });
+
+            const result = await uploadResponse.json();
+
+            if (result.success) {
+                audioStatus[word.id] = true;
+                completed++;
+            } else {
+                failed++;
+                console.error(`Failed to save audio for "${word.english}":`, result.error);
+            }
+
+        } catch (error) {
+            failed++;
+            console.error(`Failed to generate audio for "${word.english}":`, error);
+        }
+
+        // Small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Done - update UI
+    progressDiv.classList.add('hidden');
+    updateAudioStats();
+    filterWords();
+
+    if (failed > 0) {
+        alert(`Completed! ${completed} succeeded, ${failed} failed.`);
+    } else {
+        alert(`All ${completed} audio files generated successfully!`);
+    }
+}
+
+// Helper to convert blob to base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 // Make functions globally accessible
 window.editWord = editWord;
 window.deleteWord = deleteWord;
@@ -1022,3 +1256,7 @@ window.closeModal = closeModal;
 window.openResetModal = openResetModal;
 window.closeResetModal = closeResetModal;
 window.deleteUser = deleteUser;
+window.playAudio = playAudio;
+window.generateAudio = generateAudio;
+window.deleteAudio = deleteAudio;
+window.generateAllAudio = generateAllAudio;

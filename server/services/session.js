@@ -109,6 +109,7 @@ function prepareWordForClient(sessionData) {
         index: sessionData.currentIndex,
         total: sessionData.words.length,
         direction,
+        wordId: word.wordId,
         question: direction === 'en_to_tr' ? word.english : word.turkish,
         english: word.english,
         turkish: word.turkish,

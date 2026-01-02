@@ -254,8 +254,8 @@ function setupEventListeners() {
 
     // Audio repeat button
     document.getElementById('audio-btn').addEventListener('click', () => {
-        if (currentWordData && currentWordData.direction === 'en_to_tr') {
-            playWordAudio(currentWordData.english);
+        if (currentWordData && currentWordData.direction === 'en_to_tr' && currentWordData.wordId) {
+            playWordAudio(currentWordData.wordId);
         }
     });
 }
@@ -537,13 +537,9 @@ function displayWord(wordData) {
 
     // Handle audio for English words (en_to_tr direction only)
     const audioBtn = document.getElementById('audio-btn');
-    if (isEnToTr) {
-        // Show audio button and auto-play English word
-        audioBtn.style.display = 'inline-flex';
-        // Small delay to let the UI settle before playing
-        setTimeout(() => {
-            playWordAudio(wordData.english);
-        }, 300);
+    if (isEnToTr && wordData.wordId) {
+        // Check if audio exists and show button accordingly
+        checkAndPlayAudio(wordData.wordId, audioBtn);
     } else {
         // Hide audio button for tr_to_en direction
         audioBtn.style.display = 'none';
@@ -603,8 +599,8 @@ function handleTimeUp() {
     handleDontKnow();
 }
 
-// Audio playback function using Puter TTS
-async function playWordAudio(word) {
+// Audio playback function using server-stored audio files
+async function playWordAudio(wordId) {
     const audioBtn = document.getElementById('audio-btn');
 
     // If already playing, stop current audio
@@ -624,15 +620,19 @@ async function playWordAudio(word) {
         }
         isAudioPlaying = true;
 
-        // Use Puter TTS with neural engine for better quality
-        currentAudio = await puter.ai.txt2speech(word, {
-            voice: "Joanna",      // Clear female voice
-            engine: "neural",     // High quality neural engine
-            language: "en-US"
-        });
+        // Create audio element with server URL
+        currentAudio = new Audio(`/api/audio/${wordId}`);
 
         // Set up event listener for when audio ends
         currentAudio.onended = () => {
+            isAudioPlaying = false;
+            if (audioBtn) {
+                audioBtn.classList.remove('playing');
+            }
+        };
+
+        // Handle errors (audio not found)
+        currentAudio.onerror = () => {
             isAudioPlaying = false;
             if (audioBtn) {
                 audioBtn.classList.remove('playing');
@@ -648,6 +648,29 @@ async function playWordAudio(word) {
         if (audioBtn) {
             audioBtn.classList.remove('playing');
         }
+    }
+}
+
+// Check if audio exists and auto-play if available
+async function checkAndPlayAudio(wordId, audioBtn) {
+    try {
+        const response = await apiFetch(`/api/audio/${wordId}/exists`);
+        const data = await response.json();
+
+        if (data.success && data.exists) {
+            // Show audio button and auto-play
+            audioBtn.style.display = 'inline-flex';
+            // Small delay to let the UI settle before playing
+            setTimeout(() => {
+                playWordAudio(wordId);
+            }, 300);
+        } else {
+            // No audio available, hide button
+            audioBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking audio:', error);
+        audioBtn.style.display = 'none';
     }
 }
 

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/admin.css">
+    <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
     <div class="admin-container">
@@ -88,7 +89,21 @@
             </div>
 
             <div class="section">
-                <h2>Word List (<span id="word-count">0</span> words)</h2>
+                <div class="section-header">
+                    <h2>Word List (<span id="word-count">0</span> words)</h2>
+                    <div class="audio-bulk-actions">
+                        <span id="audio-stats" class="audio-stats"></span>
+                        <button id="generate-all-audio-btn" class="btn btn-secondary" onclick="generateAllAudio()">
+                            🔊 Generate All Audio
+                        </button>
+                    </div>
+                </div>
+                <div id="audio-progress" class="audio-progress hidden">
+                    <div class="progress-bar-container">
+                        <div id="audio-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <span id="audio-progress-text">0 / 0</span>
+                </div>
                 <div class="filter-bar">
                     <input type="text" id="search-input" placeholder="Search words...">
                     <select id="filter-category">

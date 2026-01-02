@@ -16,7 +16,49 @@ const { startSession, submitAnswer, endSession, getSessionState } = require('../
 const { getTodayDate, daysSince } = require('../utils/timezone');
 const { authenticateToken } = require('../middleware/auth');
 
-// All routes require authentication
+// ============================================
+// PUBLIC AUDIO ENDPOINTS (no auth required)
+// ============================================
+
+const path = require('path');
+const fs = require('fs');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
+const AUDIO_DIR = path.join(DATA_DIR, 'audio');
+
+// Get audio file for a word (public - no auth needed for HTML5 Audio)
+router.get('/audio/:wordId', (req, res) => {
+    try {
+        const wordId = parseInt(req.params.wordId);
+        const audioPath = path.join(AUDIO_DIR, `${wordId}.mp3`);
+
+        if (fs.existsSync(audioPath)) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            fs.createReadStream(audioPath).pipe(res);
+        } else {
+            res.status(404).json({ success: false, error: 'Audio not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Check if audio exists for a word (public)
+router.get('/audio/:wordId/exists', (req, res) => {
+    try {
+        const wordId = parseInt(req.params.wordId);
+        const audioPath = path.join(AUDIO_DIR, `${wordId}.mp3`);
+        res.json({ success: true, exists: fs.existsSync(audioPath) });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
+// AUTHENTICATED ROUTES
+// ============================================
+
+// All routes below require authentication
 router.use(authenticateToken);
 
 // Get dashboard data

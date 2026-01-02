@@ -18,7 +18,7 @@ COPY server/ ./server/
 COPY public/ ./public/
 
 # Create data and config directories
-RUN mkdir -p /app/data/uploads /app/config
+RUN mkdir -p /app/data/uploads /app/data/audio /app/config
 
 # Expose port
 EXPOSE 3000

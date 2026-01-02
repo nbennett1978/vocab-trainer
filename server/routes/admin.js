@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcrypt');
 
 const {
@@ -298,7 +299,6 @@ router.post('/words/upload', upload.single('file'), (req, res) => {
             return res.status(400).json({ success: false, error: 'No file uploaded' });
         }
 
-        const fs = require('fs');
         const content = fs.readFileSync(req.file.path, 'utf-8');
 
         // Get category from filename (e.g., verbs.txt -> verb)
@@ -426,7 +426,94 @@ router.delete('/words/:id', (req, res) => {
 
         wordOperations.delete.run(id);
 
+        // Also delete audio file if it exists
+        const audioPath = path.join(DATA_DIR, 'audio', `${id}.mp3`);
+        if (fs.existsSync(audioPath)) {
+            fs.unlinkSync(audioPath);
+        }
+
         res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================
+// AUDIO MANAGEMENT ENDPOINTS
+// ============================================
+
+const AUDIO_DIR = path.join(DATA_DIR, 'audio');
+
+// Ensure audio directory exists
+if (!fs.existsSync(AUDIO_DIR)) {
+    fs.mkdirSync(AUDIO_DIR, { recursive: true });
+}
+
+// Check if word has audio
+router.get('/words/:id/audio/status', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const audioPath = path.join(AUDIO_DIR, `${id}.mp3`);
+        const hasAudio = fs.existsSync(audioPath);
+        res.json({ success: true, hasAudio });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get audio status for all words
+router.get('/audio/status', (req, res) => {
+    try {
+        const words = wordOperations.getAll.all();
+        const audioStatus = {};
+        for (const word of words) {
+            const audioPath = path.join(AUDIO_DIR, `${word.id}.mp3`);
+            audioStatus[word.id] = fs.existsSync(audioPath);
+        }
+        res.json({ success: true, audioStatus });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Upload audio for a word (receives base64 audio data)
+router.post('/words/:id/audio', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { audioData } = req.body;
+
+        if (!audioData) {
+            return res.status(400).json({ success: false, error: 'Audio data required' });
+        }
+
+        const existing = wordOperations.getById.get(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: 'Word not found' });
+        }
+
+        // Decode base64 and save as MP3
+        const audioBuffer = Buffer.from(audioData, 'base64');
+        const audioPath = path.join(AUDIO_DIR, `${id}.mp3`);
+        fs.writeFileSync(audioPath, audioBuffer);
+
+        res.json({ success: true, message: 'Audio saved' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Delete audio for a word
+router.delete('/words/:id/audio', (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const audioPath = path.join(AUDIO_DIR, `${id}.mp3`);
+
+        if (fs.existsSync(audioPath)) {
+            fs.unlinkSync(audioPath);
+            res.json({ success: true, message: 'Audio deleted' });
+        } else {
+            res.json({ success: true, message: 'No audio to delete' });
+        }
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
