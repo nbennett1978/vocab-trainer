@@ -7,8 +7,8 @@ node_modules/
 *.db
 *.db-shm
 *.db-wal
-data/audio/*
-data/uploads/*
+data/audio/
+data/uploads/
 
 # Environment variables
 .env
