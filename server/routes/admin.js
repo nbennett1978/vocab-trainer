@@ -587,40 +587,37 @@ router.get('/entire-set', (req, res) => {
     }
 });
 
-// Get overview of all users' progress
+// Get progress for a specific user
 router.get('/progress', (req, res) => {
     try {
-        const users = userOperations.getAll.all();
-        const recentSessions = sessionOperations.getRecentAll.all(20);
+        const userId = req.query.user_id ? parseInt(req.query.user_id) : null;
 
-        // Get summary for each user
-        const userProgress = users.filter(u => !u.is_admin).map(user => {
-            const stats = learnerStatsOperations.get.get(user.id);
-            const progressStats = getProgressStats(user.id);
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'user_id is required' });
+        }
 
-            return {
-                user: {
-                    id: user.id,
-                    username: user.username
-                },
-                stats: stats ? {
-                    totalStars: stats.total_stars,
-                    currentStreak: stats.current_streak,
-                    longestStreak: stats.longest_streak,
-                    lastActiveDate: stats.last_active_date
-                } : null,
-                progress: progressStats
-            };
-        });
+        const user = userOperations.getById.get(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const stats = learnerStatsOperations.get.get(userId);
+        const progressStats = getProgressStats(userId);
+        const recentSessions = sessionOperations.getRecent.all(userId, 20);
+        const achievements = db.prepare('SELECT * FROM achievements WHERE user_id = ? ORDER BY unlocked_at DESC').all(userId);
 
         res.json({
             success: true,
             data: {
-                userProgress,
-                recentSessions: recentSessions.map(s => ({
-                    ...s,
-                    username: s.username
-                }))
+                progress: progressStats,
+                learner: stats || {
+                    total_stars: 0,
+                    current_streak: 0,
+                    longest_streak: 0,
+                    last_active_date: null
+                },
+                recentSessions,
+                achievements
             }
         });
     } catch (error) {

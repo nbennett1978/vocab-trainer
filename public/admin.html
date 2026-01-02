@@ -216,7 +216,15 @@
         <!-- Entire Set Tab -->
         <div id="entire-set-tab" class="tab-content">
             <div class="section">
-                <h2>📚 All Words in Database</h2>
+                <div class="user-selector-row">
+                    <h2>📚 All Words in Database</h2>
+                    <div class="user-selector-wrapper">
+                        <label>Student:</label>
+                        <select id="es-user-selector" onchange="selectedUserId = parseInt(this.value); loadEntireSet();">
+                            <!-- Users will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
                 <p class="help-text">All vocabulary words with their learning progress.</p>
                 <div class="working-set-stats">
                     <div class="stat-card">
@@ -250,7 +258,15 @@
         <!-- Progress Tab -->
         <div id="progress-tab" class="tab-content">
             <div class="section">
-                <h2>Learner Statistics</h2>
+                <div class="user-selector-row">
+                    <h2>Learner Statistics</h2>
+                    <div class="user-selector-wrapper">
+                        <label>Student:</label>
+                        <select id="progress-user-selector" onchange="selectedUserId = parseInt(this.value); loadProgress();">
+                            <!-- Users will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="stat-total-stars">0</div>

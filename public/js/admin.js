@@ -346,21 +346,46 @@ async function loadUsers() {
     }
 }
 
-// Render user selector
+// Render user selector - updates all three user selectors
 function renderUserSelector(users) {
-    const container = document.getElementById('user-selector');
-    if (!container) return;
+    const selectors = [
+        document.getElementById('user-selector'),
+        document.getElementById('es-user-selector'),
+        document.getElementById('progress-user-selector')
+    ];
 
-    container.innerHTML = users.map(user => `
+    const optionsHtml = users.map(user => `
         <option value="${user.id}" ${user.id === selectedUserId ? 'selected' : ''}>
             ${escapeHtml(user.username)} ${user.stats ? `(${user.stats.totalStars}⭐)` : ''}
         </option>
     `).join('');
+
+    selectors.forEach(container => {
+        if (container) {
+            container.innerHTML = optionsHtml;
+        }
+    });
+}
+
+// Sync all user selectors to the current selectedUserId
+function syncUserSelectors() {
+    const selectors = [
+        document.getElementById('user-selector'),
+        document.getElementById('es-user-selector'),
+        document.getElementById('progress-user-selector')
+    ];
+
+    selectors.forEach(container => {
+        if (container && selectedUserId) {
+            container.value = selectedUserId;
+        }
+    });
 }
 
 // Load working set
 async function loadWorkingSet() {
     if (!selectedUserId) return;
+    syncUserSelectors();
     try {
         const response = await apiFetch(`/admin/api/working-set?user_id=${selectedUserId}`);
         const data = await response.json();
@@ -405,6 +430,7 @@ function renderWorkingSet(words) {
 // Load entire set
 async function loadEntireSet() {
     if (!selectedUserId) return;
+    syncUserSelectors();
     try {
         const response = await apiFetch(`/admin/api/entire-set?user_id=${selectedUserId}`);
         const data = await response.json();
@@ -682,8 +708,10 @@ async function deleteWord(id) {
 
 // Load progress
 async function loadProgress() {
+    if (!selectedUserId) return;
+    syncUserSelectors();
     try {
-        const response = await apiFetch('/admin/api/progress');
+        const response = await apiFetch(`/admin/api/progress?user_id=${selectedUserId}`);
         const data = await response.json();
 
         if (data.success) {
