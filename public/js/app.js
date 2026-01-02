@@ -116,8 +116,12 @@ async function login(username, password) {
         setToken(data.token);
         setUser(data.user);
 
-        // Load dashboard
-        loadDashboard();
+        // Redirect admin to admin panel, otherwise load learner dashboard
+        if (data.user.is_admin) {
+            window.location.href = '/admin';
+        } else {
+            loadDashboard();
+        }
 
     } catch (error) {
         errorEl.textContent = error.message;
