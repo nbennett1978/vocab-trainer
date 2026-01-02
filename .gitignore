@@ -1,11 +1,14 @@
 # Dependencies
 node_modules/
 
+
 # Database and user data
 #data/
 *.db
 *.db-shm
 *.db-wal
+data/audio/*
+data/uploads/*
 
 # Environment variables
 .env
