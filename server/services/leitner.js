@@ -3,7 +3,9 @@
 const {
     db,
     progressOperations,
-    settingsOperations
+    settingsOperations,
+    wordOperations,
+    initializeProgressForUser
 } = require('../db/database');
 
 // Box intervals: how often to review words in each box
@@ -19,6 +21,17 @@ const BOX_INTERVALS = {
 // Working set size (initial number of words to learn)
 const INITIAL_WORKING_SET_SIZE = 25;
 const SUCCESS_RATE_THRESHOLD = 0.60; // 60% success rate needed to add new words
+
+// Ensure progress records exist for a user (create if missing)
+function ensureProgressRecordsExist(userId) {
+    const count = db.prepare('SELECT COUNT(*) as count FROM progress WHERE user_id = ?').get(userId);
+    if (count.count === 0) {
+        // No progress records exist - initialize them
+        initializeProgressForUser(userId);
+        return true; // Records were created
+    }
+    return false; // Records already existed
+}
 
 // Get the new box after answering
 function getNewBox(currentBox, isCorrect) {
@@ -207,6 +220,9 @@ function shouldExpandWorkingSet(userId) {
 
 // Select words for a session for a user
 function selectWordsForSession(userId, sessionType, categoryFilter, direction) {
+    // Ensure progress records exist for this user (in case they were never initialized)
+    ensureProgressRecordsExist(userId);
+
     const quickSetting = settingsOperations.get.get('quick_lesson_count');
     const weakSetting = settingsOperations.get.get('weak_words_count');
 
@@ -400,5 +416,6 @@ module.exports = {
     shuffleArray,
     getProgressStats,
     areAllWordsMastered,
-    getReviewWordCount
+    getReviewWordCount,
+    ensureProgressRecordsExist
 };

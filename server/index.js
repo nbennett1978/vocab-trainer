@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { initializeDatabase, db } = require('./db/database');
+const { startBackupScheduler } = require('./services/backup');
 
 // Initialize database
 initializeDatabase();
@@ -47,4 +48,5 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`Vocabulary Trainer running on http://localhost:${PORT}`);
     console.log(`Admin panel: http://localhost:${PORT}/admin`);
+    startBackupScheduler(db);
 });
