@@ -802,6 +802,30 @@ function renderBoxBars(containerId, boxes) {
     }).join('');
 }
 
+// Format session type and category for display
+function formatSessionLabel(sessionType, categoryFilter) {
+    const categoryLabels = {
+        'all': 'All Words',
+        'verb': 'Verbs',
+        'noun': 'Nouns',
+        'adjective': 'Adjectives',
+        'adverb': 'Adverbs',
+        'other': 'Other'
+    };
+
+    const typeLabels = {
+        'quick': 'Quick Practice',
+        'weak_words': 'Weak Words',
+        'review_mastered': 'Review Mastered',
+        'category': 'Category Practice'
+    };
+
+    const category = categoryLabels[categoryFilter] || categoryFilter || 'All Words';
+    const type = typeLabels[sessionType] || sessionType;
+
+    return `${type}: ${category}`;
+}
+
 // Render sessions
 function renderSessions(sessions) {
     const container = document.getElementById('recent-sessions');
@@ -814,7 +838,7 @@ function renderSessions(sessions) {
     container.innerHTML = sessions.map(session => `
         <div class="session-item">
             <div>
-                <span class="session-type">${session.session_type}</span>
+                <span class="session-type">${formatSessionLabel(session.session_type, session.category_filter)}</span>
                 <span class="session-date">${formatDate(session.started_at)}</span>
             </div>
             <div class="session-stats">
