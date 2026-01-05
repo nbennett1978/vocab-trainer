@@ -60,9 +60,12 @@ function startSession(userId, sessionType, categoryFilter = 'all') {
             leitnerBox: w.leitner_box,
             timesAsked: w.times_asked,
             timesCorrect: w.times_correct,
-            isNew: w.leitner_box === 0
+            isNew: w.leitner_box === 0,
+            isRetryAttempt: false,  // First attempt, not a retry
+            retryCount: 0           // How many times this word has been retried
         })),
         currentIndex: 0,
+        originalWordCount: words.length,  // Track original count for scoring
         results: [],
         starsEarned: 0,
         startedAt: new Date()
@@ -105,9 +108,12 @@ function prepareWordForClient(sessionData) {
     const direction = sessionData.direction;
     const answer = direction === 'en_to_tr' ? word.turkish : word.english;
 
+    // Count how many first-attempt words have been answered
+    const firstAttemptAnswered = sessionData.results.length;
+
     return {
-        index: sessionData.currentIndex,
-        total: sessionData.words.length,
+        index: firstAttemptAnswered,  // Progress based on first attempts only
+        total: sessionData.originalWordCount,  // Original word count for scoring
         direction,
         wordId: word.wordId,
         question: direction === 'en_to_tr' ? word.english : word.turkish,
@@ -117,6 +123,8 @@ function prepareWordForClient(sessionData) {
         exampleSentence: processExampleSentence(word.exampleSentence, direction),
         category: word.category,
         isVerb: word.category === 'verb',
+        isRetry: word.isRetryAttempt,  // Let UI know this is a retry
+        retryNumber: word.retryCount,  // Which retry attempt (1 or 2)
         stats: {
             timesAsked: word.timesAsked,
             timesCorrect: word.timesCorrect,
@@ -158,43 +166,61 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
     // On retry, require exact match - don't accept "almost" answers
     const isCorrect = validation.result === ValidationResult.CORRECT;
 
-    // Record the result
-    session.results.push({
-        wordId: word.wordId,
-        progressId: word.progressId,
-        isCorrect,
-        userAnswer,
-        correctAnswer,
-        wasNew: word.isNew
-    });
+    // Check if this is a spaced-retry attempt (not the typo-retry which is isRetry param)
+    const isSpacedRetry = word.isRetryAttempt;
 
-    // Award stars for correct answers
-    if (isCorrect) {
-        session.starsEarned += 1;
+    // Only record results and update database for first attempts (not spaced retries)
+    if (!isSpacedRetry) {
+        // Record the result (first attempts only)
+        session.results.push({
+            wordId: word.wordId,
+            progressId: word.progressId,
+            isCorrect,
+            userAnswer,
+            correctAnswer,
+            wasNew: word.isNew
+        });
+
+        // Award stars for correct answers (first attempts only)
+        if (isCorrect) {
+            session.starsEarned += 1;
+        }
+
+        // Update progress in database (first attempts only)
+        const newBox = getNewBox(word.leitnerBox === 0 ? 1 : word.leitnerBox, isCorrect);
+        const now = getCurrentDateTime();
+
+        progressOperations.updateAfterAnswer.run({
+            id: word.progressId,
+            leitner_box: newBox,
+            correct: isCorrect ? 1 : 0,
+            last_asked: now,
+            first_learned: word.isNew ? now : null
+        });
+
+        // Track new word introduction
+        if (word.isNew) {
+            const today = getTodayDate();
+            dailyActivityOperations.upsert.run({
+                user_id: userId,
+                date: today,
+                sessions_completed: 0,
+                words_introduced: 1,
+                stars_earned: 0
+            });
+        }
     }
 
-    // Update progress in database
-    const newBox = getNewBox(word.leitnerBox === 0 ? 1 : word.leitnerBox, isCorrect);
-    const now = getCurrentDateTime();
-
-    progressOperations.updateAfterAnswer.run({
-        id: word.progressId,
-        leitner_box: newBox,
-        correct: isCorrect ? 1 : 0,
-        last_asked: now,
-        first_learned: word.isNew ? now : null
-    });
-
-    // Track new word introduction
-    if (word.isNew) {
-        const today = getTodayDate();
-        dailyActivityOperations.upsert.run({
-            user_id: userId,
-            date: today,
-            sessions_completed: 0,
-            words_introduced: 1,
-            stars_earned: 0
-        });
+    // Queue word for spaced retry if wrong and under retry limit (max 2 retries)
+    if (!isCorrect && word.retryCount < 2) {
+        const retryWord = {
+            ...word,
+            isRetryAttempt: true,
+            retryCount: word.retryCount + 1
+        };
+        // Insert retry 4 positions later (or at end if near end)
+        const insertPosition = Math.min(session.currentIndex + 4, session.words.length);
+        session.words.splice(insertPosition, 0, retryWord);
     }
 
     // Move to next word
@@ -203,13 +229,17 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
     // Check if session is complete
     const isComplete = session.currentIndex >= session.words.length;
 
+    // Calculate Leitner box for response (use current box for retries since we didn't update)
+    const responseBox = isSpacedRetry ? word.leitnerBox : getNewBox(word.leitnerBox === 0 ? 1 : word.leitnerBox, isCorrect);
+
     const response = {
         success: true,
         result: isCorrect ? 'correct' : 'incorrect',
         correctAnswer,
-        newLeitnerBox: newBox,
+        newLeitnerBox: responseBox,
         starsEarned: session.starsEarned,
-        isComplete
+        isComplete,
+        isSpacedRetry  // Let frontend know this was a retry
     };
 
     if (!isComplete) {
@@ -412,8 +442,8 @@ function getSessionState(userId, sessionId) {
     return {
         sessionId: session.id,
         direction: session.direction,
-        totalWords: session.words.length,
-        currentIndex: session.currentIndex,
+        totalWords: session.originalWordCount,  // Use original count, not including retries
+        currentIndex: session.results.length,   // First-attempt progress
         starsEarned: session.starsEarned,
         currentWord: prepareWordForClient(session)
     };

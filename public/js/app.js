@@ -509,10 +509,15 @@ function displayWord(wordData) {
     document.querySelector('.from-lang').textContent = isEnToTr ? 'EN' : 'TR';
     document.querySelector('.to-lang').textContent = isEnToTr ? 'TR' : 'EN';
 
-    // Update word stats
-    const statsText = wordData.stats.isNew
-        ? '✨ Yeni kelime!'
-        : `${wordData.stats.timesAsked}x soruldu, ${wordData.stats.timesCorrect}x doğru`;
+    // Update word stats (show retry indicator if this is a spaced retry)
+    let statsText;
+    if (wordData.isRetry) {
+        statsText = `🔄 Tekrar dene! (${wordData.retryNumber}/2)`;
+    } else if (wordData.stats.isNew) {
+        statsText = '✨ Yeni kelime!';
+    } else {
+        statsText = `${wordData.stats.timesAsked}x soruldu, ${wordData.stats.timesCorrect}x doğru`;
+    }
     document.querySelector('.stats-text').textContent = statsText;
 
     // Update question
