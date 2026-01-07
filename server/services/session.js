@@ -10,7 +10,7 @@ const {
     settingsOperations,
     transaction
 } = require('../db/database');
-const { selectWordsForSessionMixed, getNewBox, getProgressStats } = require('./leitner');
+const { selectWordsForSessionMixed, getNewBox, getProgressStats, ensureBox1MinimumSize } = require('./leitner');
 const { validateAnswer, ValidationResult, processExampleSentence, compareCharacters } = require('./validator');
 const { getTodayDate, getCurrentDateTime, isYesterday } = require('../utils/timezone');
 
@@ -317,6 +317,10 @@ function endSession(userId, sessionId) {
 
     // Clean up active session
     activeSessions.delete(`${userId}_${sessionId}`);
+
+    // Auto-replenish box 1 if below minimum (for both directions)
+    ensureBox1MinimumSize(userId, 'en_to_tr');
+    ensureBox1MinimumSize(userId, 'tr_to_en');
 
     // Get updated progress stats
     const progressStats = getProgressStats(userId);

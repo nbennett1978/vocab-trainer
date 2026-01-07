@@ -8,14 +8,24 @@ const {
     initializeProgressForUser
 } = require('../db/database');
 
-// Box intervals: how often to review words in each box
-// Box 1: every session, Box 2: every 2nd, Box 3: every 4th, Box 4: every 8th, Box 5: occasional
+// Get box intervals from settings (dynamic)
+function getBoxIntervals() {
+    return {
+        1: parseInt(settingsOperations.get.get('box_1_interval')?.value || '1'),
+        2: parseInt(settingsOperations.get.get('box_2_interval')?.value || '1'),
+        3: parseInt(settingsOperations.get.get('box_3_interval')?.value || '1'),
+        4: parseInt(settingsOperations.get.get('box_4_interval')?.value || '8'),
+        5: parseInt(settingsOperations.get.get('box_5_interval')?.value || '16')
+    };
+}
+
+// Legacy constant for backwards compatibility
 const BOX_INTERVALS = {
     1: 1,
     2: 2,
     3: 4,
     4: 8,
-    5: 16  // Mastered - very occasional
+    5: 16
 };
 
 // Working set size (initial number of words to learn)
@@ -199,6 +209,72 @@ function expandWorkingSet(userId, count = 5) {
     return initializeWorkingSet(userId, count);
 }
 
+// Get box 1 minimum size from settings
+function getBox1MinSize() {
+    return parseInt(settingsOperations.get.get('box_1_min_size')?.value || '5');
+}
+
+// Ensure box 1 has minimum number of words for a user/direction
+// Moves words from box 0 to box 1 if below minimum
+function ensureBox1MinimumSize(userId, direction) {
+    const minSize = getBox1MinSize();
+    if (minSize <= 0) return 0; // Feature disabled
+
+    const countResult = progressOperations.countBox1Words.get(userId, direction);
+    const currentCount = countResult?.count || 0;
+
+    if (currentCount >= minSize) return 0; // Already at minimum
+
+    const needed = minSize - currentCount;
+
+    // Get new words from box 0 for this direction
+    const newWords = db.prepare(`
+        SELECT p.word_id
+        FROM progress p
+        WHERE p.user_id = ? AND p.direction = ? AND p.leitner_box = 0
+        ORDER BY RANDOM()
+        LIMIT ?
+    `).all(userId, direction, needed);
+
+    if (newWords.length === 0) return 0;
+
+    // Move these words to box 1
+    const updateStmt = db.prepare(`
+        UPDATE progress
+        SET leitner_box = 1, first_learned = datetime('now')
+        WHERE user_id = ? AND word_id = ? AND direction = ?
+    `);
+
+    const transaction = db.transaction(() => {
+        for (const word of newWords) {
+            updateStmt.run(userId, word.word_id, direction);
+        }
+    });
+
+    transaction();
+    return newWords.length;
+}
+
+// Check if a word is due for review based on dynamic intervals
+function isWordDueForReview(word, boxIntervals) {
+    const box = word.leitner_box;
+    if (box <= 0) return false; // Box 0 words are not in working set
+
+    const interval = boxIntervals[box] || 1;
+    if (interval === 1) return true; // Every session
+
+    // Check if session_counter is divisible by interval
+    return (word.session_counter % interval) === 0;
+}
+
+// Get words due for review using dynamic intervals
+function getWordsDueForReviewDynamic(userId, direction) {
+    const boxIntervals = getBoxIntervals();
+    const allWords = getWorkingSet(userId, direction);
+
+    return allWords.filter(word => isWordDueForReview(word, boxIntervals));
+}
+
 // Check if we should add more words to the working set for a user
 function shouldExpandWorkingSet(userId) {
     const workingSetSize = getWorkingSetSize(userId);
@@ -255,7 +331,7 @@ function selectWordsForSession(userId, sessionType, categoryFilter, direction) {
 
         // If not enough weak words, fill with box 1-3 words
         if (selectedWords.length < targetCount) {
-            let dueWords = progressOperations.getWordsDueForReview.all(userId, direction);
+            let dueWords = getWordsDueForReviewDynamic(userId, direction);
             dueWords = dueWords.filter(w => !selectedWords.find(s => s.id === w.id));
             dueWords.sort((a, b) => a.leitner_box - b.leitner_box);
             selectedWords = selectedWords.concat(dueWords.slice(0, targetCount - selectedWords.length));
@@ -267,7 +343,7 @@ function selectWordsForSession(userId, sessionType, categoryFilter, direction) {
         selectedWords = shuffleArray(reviewWords).slice(0, targetCount);
     } else {
         // Get words from the working set (box 1-5) that are due for review
-        let dueWords = progressOperations.getWordsDueForReview.all(userId, direction);
+        let dueWords = getWordsDueForReviewDynamic(userId, direction);
 
         // Filter by category if needed
         if (categoryFilter && categoryFilter !== 'all') {
@@ -453,6 +529,7 @@ module.exports = {
     BOX_INTERVALS,
     INITIAL_WORKING_SET_SIZE,
     SUCCESS_RATE_THRESHOLD,
+    getBoxIntervals,
     getNewBox,
     getWorkingSet,
     getWorkingSetSize,
@@ -461,9 +538,11 @@ module.exports = {
     getEntireSetWithStats,
     initializeWorkingSet,
     expandWorkingSet,
+    ensureBox1MinimumSize,
     shouldExpandWorkingSet,
     selectWordsForSession,
     selectWordsForSessionMixed,
+    getWordsDueForReviewDynamic,
     shuffleArray,
     getProgressStats,
     areAllWordsMastered,

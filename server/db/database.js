@@ -228,6 +228,12 @@ const progressOperations = {
         LIMIT ?
     `),
 
+    countBox1Words: db.prepare(`
+        SELECT COUNT(*) as count
+        FROM progress
+        WHERE user_id = ? AND direction = ? AND leitner_box = 1
+    `),
+
     insert: db.prepare(`
         INSERT INTO progress (user_id, word_id, direction, leitner_box)
         VALUES (@user_id, @word_id, @direction, @leitner_box)

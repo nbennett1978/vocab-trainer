@@ -374,6 +374,46 @@
                     <button type="submit" class="btn btn-primary">Save Settings</button>
                 </form>
             </div>
+
+            <div class="section">
+                <h2>Review Frequency (Box Intervals)</h2>
+                <p>How often to review words in each box. 1 = every session, 2 = every 2nd session, etc.</p>
+                <form id="intervals-form" class="settings-form">
+                    <div class="form-group">
+                        <label>Box 1 Interval</label>
+                        <input type="number" id="setting-box-1-interval" min="1" max="16" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Box 2 Interval</label>
+                        <input type="number" id="setting-box-2-interval" min="1" max="16" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Box 3 Interval</label>
+                        <input type="number" id="setting-box-3-interval" min="1" max="16" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Box 4 Interval</label>
+                        <input type="number" id="setting-box-4-interval" min="1" max="16" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Box 5 Interval</label>
+                        <input type="number" id="setting-box-5-interval" min="1" max="32" value="16">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Intervals</button>
+                </form>
+            </div>
+
+            <div class="section">
+                <h2>Auto-Replenishment</h2>
+                <p>Automatically add new words to Box 1 when it falls below minimum size.</p>
+                <form id="replenish-form" class="settings-form">
+                    <div class="form-group">
+                        <label>Box 1 Minimum Size (0 to disable)</label>
+                        <input type="number" id="setting-box-1-min-size" min="0" max="50" value="5">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </form>
+            </div>
         </div>
 
         <!-- Edit Word Modal -->

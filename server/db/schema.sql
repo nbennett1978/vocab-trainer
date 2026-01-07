@@ -95,7 +95,13 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('weak_words_count', '5'),
     ('new_words_per_day', '5'),
     ('mastered_review_chance', '0.1'),
-    ('timezone', 'Europe/Istanbul');
+    ('timezone', 'Europe/Istanbul'),
+    ('box_1_interval', '1'),
+    ('box_2_interval', '1'),
+    ('box_3_interval', '1'),
+    ('box_4_interval', '8'),
+    ('box_5_interval', '16'),
+    ('box_1_min_size', '5');
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id);

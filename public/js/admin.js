@@ -172,6 +172,18 @@ function setupForms() {
         await saveSettings();
     });
 
+    // Intervals form
+    document.getElementById('intervals-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveIntervals();
+    });
+
+    // Replenish form
+    document.getElementById('replenish-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveReplenish();
+    });
+
     // Reset progress button
     document.getElementById('reset-progress-btn').addEventListener('click', resetProgress);
 
@@ -914,11 +926,20 @@ async function loadSettings() {
 
         if (data.success) {
             const s = data.settings;
+            // Session settings
             document.getElementById('setting-quick').value = s.quick_lesson_count || 5;
             document.getElementById('setting-weak-words').value = s.weak_words_count || 5;
             document.getElementById('setting-review-chance').value = s.mastered_review_chance || 0.1;
             document.getElementById('setting-answer-timeout').value = s.answer_timeout || 30;
             document.getElementById('setting-timezone').value = s.timezone || 'Europe/Istanbul';
+            // Box intervals
+            document.getElementById('setting-box-1-interval').value = s.box_1_interval || 1;
+            document.getElementById('setting-box-2-interval').value = s.box_2_interval || 1;
+            document.getElementById('setting-box-3-interval').value = s.box_3_interval || 1;
+            document.getElementById('setting-box-4-interval').value = s.box_4_interval || 8;
+            document.getElementById('setting-box-5-interval').value = s.box_5_interval || 16;
+            // Auto-replenishment
+            document.getElementById('setting-box-1-min-size').value = s.box_1_min_size || 5;
         }
     } catch (error) {
         console.error('Load settings error:', error);
@@ -946,6 +967,60 @@ async function saveSettings() {
 
         if (data.success) {
             alert('Settings saved!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving settings: ' + error.message);
+    }
+}
+
+// Save box intervals
+async function saveIntervals() {
+    const settings = {
+        box_1_interval: document.getElementById('setting-box-1-interval').value,
+        box_2_interval: document.getElementById('setting-box-2-interval').value,
+        box_3_interval: document.getElementById('setting-box-3-interval').value,
+        box_4_interval: document.getElementById('setting-box-4-interval').value,
+        box_5_interval: document.getElementById('setting-box-5-interval').value
+    };
+
+    try {
+        const response = await apiFetch('/admin/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Intervals saved!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving intervals: ' + error.message);
+    }
+}
+
+// Save auto-replenishment settings
+async function saveReplenish() {
+    const settings = {
+        box_1_min_size: document.getElementById('setting-box-1-min-size').value
+    };
+
+    try {
+        const response = await apiFetch('/admin/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Auto-replenishment settings saved!');
         } else {
             alert('Error: ' + data.error);
         }
