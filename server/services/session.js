@@ -7,10 +7,11 @@ const {
     dailyActivityOperations,
     learnerStatsOperations,
     achievementOperations,
+    settingsOperations,
     transaction
 } = require('../db/database');
-const { selectWordsForSession, getNewBox, getProgressStats } = require('./leitner');
-const { validateAnswer, ValidationResult, processExampleSentence } = require('./validator');
+const { selectWordsForSessionMixed, getNewBox, getProgressStats } = require('./leitner');
+const { validateAnswer, ValidationResult, processExampleSentence, compareCharacters } = require('./validator');
 const { getTodayDate, getCurrentDateTime, isYesterday } = require('../utils/timezone');
 
 // Active sessions storage (in-memory for simplicity)
@@ -19,11 +20,19 @@ const activeSessions = new Map();
 
 // Start a new training session for a user
 function startSession(userId, sessionType, categoryFilter = 'all') {
-    // Randomly choose direction for this session (or alternate)
-    const direction = Math.random() > 0.5 ? 'en_to_tr' : 'tr_to_en';
+    // Get target word count from settings
+    const quickSetting = settingsOperations.get.get('quick_lesson_count');
+    const weakSetting = settingsOperations.get.get('weak_words_count');
+    const settings = {
+        quick: parseInt(quickSetting?.value || '5'),
+        weak_words: parseInt(weakSetting?.value || '5'),
+        review_mastered: 10,
+        category: parseInt(quickSetting?.value || '5')
+    };
+    const targetCount = settings[sessionType] || 5;
 
-    // Select words for the session
-    const words = selectWordsForSession(userId, sessionType, categoryFilter, direction);
+    // Select words with mixed directions (at least 40% each direction)
+    const words = selectWordsForSessionMixed(userId, sessionType, categoryFilter, targetCount);
 
     if (words.length === 0) {
         return {
@@ -43,11 +52,10 @@ function startSession(userId, sessionType, categoryFilter = 'all') {
 
     const sessionId = sessionResult.lastInsertRowid;
 
-    // Prepare session data
+    // Prepare session data - direction is now per-word, not per-session
     const sessionData = {
         id: sessionId,
         userId,
-        direction,
         sessionType,
         categoryFilter,
         words: words.map(w => ({
@@ -57,6 +65,7 @@ function startSession(userId, sessionType, categoryFilter = 'all') {
             turkish: w.turkish,
             category: w.category,
             exampleSentence: w.example_sentence,
+            direction: w.direction,  // Direction is now per-word
             leitnerBox: w.leitner_box,
             timesAsked: w.times_asked,
             timesCorrect: w.times_correct,
@@ -74,12 +83,11 @@ function startSession(userId, sessionType, categoryFilter = 'all') {
     // Store in active sessions (keyed by both userId and sessionId for security)
     activeSessions.set(`${userId}_${sessionId}`, sessionData);
 
-    // Return first question
+    // Return first question - direction comes from the first word
     return {
         success: true,
         sessionId,
         totalWords: words.length,
-        direction,
         currentWord: prepareWordForClient(sessionData)
     };
 }
@@ -105,7 +113,8 @@ function prepareWordForClient(sessionData) {
     const word = sessionData.words[sessionData.currentIndex];
     if (!word) return null;
 
-    const direction = sessionData.direction;
+    // Direction is now per-word
+    const direction = word.direction;
     const answer = direction === 'en_to_tr' ? word.turkish : word.english;
 
     // Count how many first-attempt words have been answered
@@ -146,7 +155,8 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
         return { success: false, error: 'No current word' };
     }
 
-    const direction = session.direction;
+    // Direction is now per-word
+    const direction = word.direction;
     const correctAnswer = direction === 'en_to_tr' ? word.turkish : word.english;
     const isVerb = word.category === 'verb';
 
@@ -243,10 +253,15 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
     // Calculate Leitner box for response (use current box for retries since we didn't update)
     const responseBox = isSpacedRetry ? word.leitnerBox : getNewBox(word.leitnerBox === 0 ? 1 : word.leitnerBox, isCorrect);
 
+    // Get character comparison for wrong answers (for visual highlighting)
+    const charComparison = !isCorrect ? compareCharacters(userAnswer, correctAnswer) : null;
+
     const response = {
         success: true,
         result: isCorrect ? 'correct' : 'incorrect',
         correctAnswer,
+        correctAnswerLength: correctAnswer.length,  // Show expected character count
+        charComparison,  // Character-by-character comparison for highlighting
         newLeitnerBox: responseBox,
         starsEarned: session.starsEarned,
         isComplete,
@@ -450,9 +465,9 @@ function getSessionState(userId, sessionId) {
     const session = activeSessions.get(`${userId}_${sessionId}`);
     if (!session) return null;
 
+    // Direction is now per-word, included in currentWord
     return {
         sessionId: session.id,
-        direction: session.direction,
         totalWords: session.originalWordCount,  // Use original count, not including retries
         currentIndex: session.results.length,   // First-attempt progress
         starsEarned: session.starsEarned,

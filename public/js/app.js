@@ -267,10 +267,9 @@ async function checkOrphanedSession() {
             );
 
             if (resume) {
-                // Resume the session
+                // Resume the session - direction is now per-word (in currentWord)
                 currentSession = {
                     id: orphanedId,
-                    direction: data.state.direction,
                     totalWords: data.state.totalWords,
                     currentIndex: data.state.currentIndex,
                     starsEarned: data.state.starsEarned
@@ -608,7 +607,6 @@ async function startSession(type, category = 'all') {
 
         currentSession = {
             id: data.sessionId,
-            direction: data.direction,
             totalWords: data.totalWords,
             currentIndex: 0,
             stars: 0
@@ -981,8 +979,14 @@ async function submitAnswer() {
             currentSession.nextWord = data.nextWord;
             currentSession.isComplete = data.isComplete;
 
-            // Show popup with both words and student's wrong answer
-            showWrongPopup(currentWordData.english, currentWordData.turkish, answer);
+            // Show popup with both words, student's wrong answer, and character highlighting
+            showWrongPopup(
+                currentWordData.english,
+                currentWordData.turkish,
+                answer,
+                data.charComparison,
+                data.correctAnswerLength
+            );
         }
 
     } catch (error) {
@@ -1097,22 +1101,55 @@ sparkleStyle.textContent = `
 document.head.appendChild(sparkleStyle);
 
 // Wrong answer popup functions
-function showWrongPopup(english, turkish, studentAnswer = '') {
+function showWrongPopup(english, turkish, studentAnswer = '', charComparison = null, correctLength = 0) {
     document.getElementById('popup-english').textContent = english;
     document.getElementById('popup-turkish').textContent = turkish;
 
     // Show student's wrong answer if provided
     const studentAnswerRow = document.getElementById('student-answer-row');
     const studentAnswerEl = document.getElementById('popup-student-answer');
+    const charCountEl = document.getElementById('popup-char-count');
+
     if (studentAnswer && studentAnswer.trim()) {
-        studentAnswerEl.textContent = studentAnswer;
+        // If we have character comparison data, render with colors
+        if (charComparison && charComparison.length > 0) {
+            studentAnswerEl.innerHTML = charComparison.map(c =>
+                `<span class="${c.isCorrect ? 'char-correct' : 'char-incorrect'}">${escapeHtml(c.char)}</span>`
+            ).join('');
+        } else {
+            studentAnswerEl.textContent = studentAnswer;
+        }
         studentAnswerRow.classList.remove('hidden');
+
+        // Show character count comparison
+        if (correctLength > 0) {
+            const userLength = studentAnswer.length;
+            const diff = userLength - correctLength;
+            let countText = `${userLength}/${correctLength} harf`;
+            if (diff > 0) {
+                countText += ` (+${diff} fazla)`;
+            } else if (diff < 0) {
+                countText += ` (${diff} eksik)`;
+            }
+            charCountEl.textContent = countText;
+            charCountEl.classList.remove('hidden');
+        } else {
+            charCountEl.classList.add('hidden');
+        }
     } else {
         studentAnswerRow.classList.add('hidden');
+        charCountEl.classList.add('hidden');
     }
 
     document.getElementById('wrong-answer-popup').classList.remove('hidden');
     isPopupOpen = true;
+}
+
+// Helper to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function closeWrongPopup() {

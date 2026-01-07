@@ -63,9 +63,63 @@ function levenshteinDistance(str1, str2) {
 // Validation result types
 const ValidationResult = {
     CORRECT: 'correct',
-    ALMOST: 'almost',      // 1 character difference - allow retry
+    ALMOST: 'almost',      // Close enough - allow retry
     INCORRECT: 'incorrect'
 };
+
+// Calculate accuracy percentage based on Levenshtein distance
+function calculateAccuracy(userAnswer, correctAnswer) {
+    if (!correctAnswer || correctAnswer.length === 0) return 0;
+    const distance = levenshteinDistance(userAnswer, correctAnswer);
+    const maxLen = Math.max(userAnswer.length, correctAnswer.length);
+    if (maxLen === 0) return 100;
+    return Math.round(((maxLen - distance) / maxLen) * 100);
+}
+
+// Check if answer is "almost correct" (75% correct, minimum 1 character correct)
+function isAlmostCorrect(userAnswer, correctAnswer) {
+    if (!userAnswer || !correctAnswer) return false;
+    if (userAnswer.length === 0) return false;
+
+    const accuracy = calculateAccuracy(userAnswer, correctAnswer);
+    const distance = levenshteinDistance(userAnswer, correctAnswer);
+    const correctChars = Math.max(correctAnswer.length - distance, 0);
+
+    // Must be at least 75% correct AND have at least 1 correct character
+    return accuracy >= 75 && correctChars >= 1 && distance > 0;
+}
+
+// Compare two strings character by character for visual highlighting
+// Returns array of { char, isCorrect } for each character in userAnswer
+function compareCharacters(userAnswer, correctAnswer) {
+    const result = [];
+    const normalizedUser = normalizeForComparison(userAnswer);
+    const normalizedCorrect = normalizeForComparison(correctAnswer);
+
+    // Use original user answer for display, but normalized for comparison
+    const displayAnswer = userAnswer || '';
+    const userLower = displayAnswer.toLowerCase();
+    const correctLower = (correctAnswer || '').toLowerCase();
+
+    for (let i = 0; i < displayAnswer.length; i++) {
+        const userChar = userLower[i];
+        const correctChar = correctLower[i];
+
+        // Character is correct if it matches at the same position
+        // Also normalize Turkish characters for comparison
+        const normalizedUserChar = normalizeTurkish(userChar);
+        const normalizedCorrectChar = correctChar ? normalizeTurkish(correctChar) : '';
+
+        const isCorrect = normalizedUserChar === normalizedCorrectChar;
+
+        result.push({
+            char: displayAnswer[i],
+            isCorrect
+        });
+    }
+
+    return result;
+}
 
 // Validate an answer
 function validateAnswer(userAnswer, correctAnswer, isVerb = false) {
@@ -104,14 +158,12 @@ function validateAnswer(userAnswer, correctAnswer, isVerb = false) {
         };
     }
 
-    // Calculate distance
-    const distance = levenshteinDistance(normalizedUser, normalizedCorrect);
-
-    // Allow retry for 1 character difference
-    if (distance === 1) {
+    // Check if almost correct (75% correct, min 1 character)
+    if (isAlmostCorrect(normalizedUser, normalizedCorrect)) {
+        const accuracy = calculateAccuracy(normalizedUser, normalizedCorrect);
         return {
             result: ValidationResult.ALMOST,
-            message: 'Almost! Check your spelling 🤔'
+            message: `Almost! ${accuracy}% correct - check your spelling 🤔`
         };
     }
 
@@ -150,5 +202,7 @@ module.exports = {
     validateAnswer,
     ValidationResult,
     processExampleSentence,
-    extractBlankWord
+    extractBlankWord,
+    compareCharacters,
+    calculateAccuracy
 };

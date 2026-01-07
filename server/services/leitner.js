@@ -350,6 +350,56 @@ function shuffleArray(array) {
     return shuffled;
 }
 
+// Select words for a session with mixed directions (at least 40% each direction)
+function selectWordsForSessionMixed(userId, sessionType, categoryFilter, targetCount) {
+    // Calculate target for each direction (aim for 50/50, but at least 40% each)
+    const halfCount = Math.floor(targetCount / 2);
+    const extraWord = targetCount % 2;
+
+    // Randomly assign extra word to one direction
+    let enTarget = halfCount;
+    let trTarget = halfCount;
+    if (extraWord > 0) {
+        if (Math.random() > 0.5) {
+            enTarget += 1;
+        } else {
+            trTarget += 1;
+        }
+    }
+
+    // Select words from each direction
+    const enWords = selectWordsForSession(userId, sessionType, categoryFilter, 'en_to_tr');
+    const trWords = selectWordsForSession(userId, sessionType, categoryFilter, 'tr_to_en');
+
+    // Attach direction to each word
+    enWords.forEach(w => w.direction = 'en_to_tr');
+    trWords.forEach(w => w.direction = 'tr_to_en');
+
+    // Take target amount from each direction
+    let selectedEn = enWords.slice(0, enTarget);
+    let selectedTr = trWords.slice(0, trTarget);
+
+    // If one direction has fewer words, fill from the other
+    const enShortfall = enTarget - selectedEn.length;
+    const trShortfall = trTarget - selectedTr.length;
+
+    if (enShortfall > 0 && trWords.length > trTarget) {
+        // Not enough EN words, take more from TR
+        const extraTr = trWords.slice(trTarget, trTarget + enShortfall);
+        selectedTr = selectedTr.concat(extraTr);
+    }
+
+    if (trShortfall > 0 && enWords.length > enTarget) {
+        // Not enough TR words, take more from EN
+        const extraEn = enWords.slice(enTarget, enTarget + trShortfall);
+        selectedEn = selectedEn.concat(extraEn);
+    }
+
+    // Combine and shuffle
+    const combined = selectedEn.concat(selectedTr);
+    return shuffleArray(combined);
+}
+
 // Get progress statistics for a user
 function getProgressStats(userId) {
     const stats = progressOperations.getStats.all(userId);
@@ -413,6 +463,7 @@ module.exports = {
     expandWorkingSet,
     shouldExpandWorkingSet,
     selectWordsForSession,
+    selectWordsForSessionMixed,
     shuffleArray,
     getProgressStats,
     areAllWordsMastered,
