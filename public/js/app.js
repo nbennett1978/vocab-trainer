@@ -134,6 +134,21 @@ async function login(username, password) {
 
 // Logout function
 async function logout() {
+    // Abandon any active session first
+    if (currentSession && currentSession.id) {
+        try {
+            await apiFetch('/api/session/abandon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: currentSession.id })
+            });
+        } catch (e) {
+            // Ignore errors
+        }
+        currentSession = null;
+        setActiveSession(null);  // Clear localStorage
+    }
+
     try {
         await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch (e) {
@@ -185,12 +200,118 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupEventListeners();
 
+    // Save session progress when user leaves the page
+    window.addEventListener('beforeunload', saveSessionOnExit);
+    window.addEventListener('pagehide', saveSessionOnExit);
+
+    // Save session progress when app goes to background (mobile)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Check auth and load dashboard if logged in
     const isAuthenticated = await checkAuth();
     if (isAuthenticated) {
+        // Check for orphaned session from previous visit
+        await checkOrphanedSession();
         loadDashboard();
     }
 });
+
+// Handle visibility change (app backgrounded on mobile)
+function handleVisibilityChange() {
+    if (document.visibilityState === 'hidden' && currentSession && currentSession.id) {
+        // Save progress when app goes to background
+        const token = getToken();
+        if (token) {
+            fetch('/api/session/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ sessionId: currentSession.id }),
+                keepalive: true
+            }).catch(() => {});
+        }
+    }
+}
+
+// Store active session in localStorage
+function setActiveSession(sessionId) {
+    if (sessionId) {
+        localStorage.setItem('activeSessionId', sessionId.toString());
+    } else {
+        localStorage.removeItem('activeSessionId');
+    }
+}
+
+function getActiveSessionId() {
+    const id = localStorage.getItem('activeSessionId');
+    return id ? parseInt(id) : null;
+}
+
+// Check for orphaned session from previous visit
+async function checkOrphanedSession() {
+    const orphanedId = getActiveSessionId();
+    if (!orphanedId) return;
+
+    try {
+        // Try to get the session state
+        const response = await apiFetch(`/api/session/${orphanedId}`);
+        const data = await response.json();
+
+        if (data.success && data.state) {
+            // Session still exists in memory - offer to resume or abandon
+            const resume = confirm(
+                `Tamamlanmamış bir ders bulundu (${data.state.currentIndex}/${data.state.totalWords} kelime).\n\n` +
+                `Devam etmek ister misin?`
+            );
+
+            if (resume) {
+                // Resume the session
+                currentSession = {
+                    id: orphanedId,
+                    direction: data.state.direction,
+                    totalWords: data.state.totalWords,
+                    currentIndex: data.state.currentIndex,
+                    starsEarned: data.state.starsEarned
+                };
+                displayWord(data.state.currentWord);
+                showScreen('training');
+                return;
+            }
+        }
+
+        // Either session not found or user chose not to resume - abandon it
+        await apiFetch('/api/session/abandon', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: orphanedId })
+        });
+    } catch (e) {
+        // Session likely expired or server restarted - just clear it
+    }
+
+    setActiveSession(null);
+}
+
+// Save session progress when leaving page
+function saveSessionOnExit() {
+    if (currentSession && currentSession.id) {
+        const token = getToken();
+        if (token) {
+            // Use fetch with keepalive for reliable delivery with auth header
+            fetch('/api/session/abandon', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ sessionId: currentSession.id }),
+                keepalive: true  // Ensures request completes even after page unload
+            }).catch(() => {});  // Ignore errors on page unload
+        }
+    }
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -215,9 +336,24 @@ function setupEventListeners() {
     });
 
     // Back button
-    document.getElementById('back-btn').addEventListener('click', () => {
+    document.getElementById('back-btn').addEventListener('click', async () => {
         if (confirm('Dersi bitirmek istediğinden emin misin?')) {
             stopTimer();
+            stopAudio();
+            // Abandon the session properly
+            if (currentSession && currentSession.id) {
+                try {
+                    await apiFetch('/api/session/abandon', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: currentSession.id })
+                    });
+                } catch (e) {
+                    // Ignore errors - we're leaving anyway
+                }
+                currentSession = null;
+                setActiveSession(null);  // Clear localStorage
+            }
             showScreen('dashboard');
             loadDashboard();
         }
@@ -477,6 +613,9 @@ async function startSession(type, category = 'all') {
             currentIndex: 0,
             stars: 0
         };
+
+        // Store session ID for recovery
+        setActiveSession(data.sessionId);
 
         isRetryMode = false;
         showScreen('training');
@@ -917,6 +1056,7 @@ async function endSession() {
         }
 
         currentSession = null;
+        setActiveSession(null);  // Clear localStorage
 
     } catch (error) {
         console.error('End session error:', error);

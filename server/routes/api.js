@@ -12,7 +12,7 @@ const {
     settingsOperations
 } = require('../db/database');
 const { getProgressStats, areAllWordsMastered, getReviewWordCount } = require('../services/leitner');
-const { startSession, submitAnswer, endSession, getSessionState } = require('../services/session');
+const { startSession, submitAnswer, endSession, getSessionState, saveSessionProgress, abandonSession } = require('../services/session');
 const { getTodayDate, daysSince, getTimezone } = require('../utils/timezone');
 const { authenticateToken } = require('../middleware/auth');
 
@@ -227,6 +227,42 @@ router.post('/session/end', (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('End session error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Save session progress (for beforeunload/periodic saves)
+router.post('/session/save', (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { sessionId } = req.body;
+
+        if (!sessionId) {
+            return res.status(400).json({ success: false, error: 'Missing sessionId' });
+        }
+
+        const result = saveSessionProgress(userId, sessionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Save session error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Abandon a session (for when user navigates away mid-session)
+router.post('/session/abandon', (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { sessionId } = req.body;
+
+        if (!sessionId) {
+            return res.status(400).json({ success: false, error: 'Missing sessionId' });
+        }
+
+        const result = abandonSession(userId, sessionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Abandon session error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

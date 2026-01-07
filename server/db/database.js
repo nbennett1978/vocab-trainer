@@ -325,9 +325,19 @@ const sessionOperations = {
 
     getById: db.prepare('SELECT * FROM sessions WHERE id = ?'),
 
-    getRecent: db.prepare('SELECT * FROM sessions WHERE user_id = ? ORDER BY started_at DESC LIMIT ?'),
+    getRecent: db.prepare('SELECT * FROM sessions WHERE user_id = ? AND ended_at IS NOT NULL ORDER BY started_at DESC LIMIT ?'),
 
-    getRecentAll: db.prepare('SELECT s.*, u.username FROM sessions s JOIN users u ON s.user_id = u.id ORDER BY s.started_at DESC LIMIT ?')
+    getRecentAll: db.prepare('SELECT s.*, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.ended_at IS NOT NULL ORDER BY s.started_at DESC LIMIT ?'),
+
+    // Get incomplete sessions (for cleanup/recovery)
+    getIncomplete: db.prepare('SELECT * FROM sessions WHERE user_id = ? AND ended_at IS NULL ORDER BY started_at DESC'),
+
+    // Mark abandoned session
+    markAbandoned: db.prepare(`
+        UPDATE sessions
+        SET ended_at = @ended_at, words_asked = 0, words_correct = 0, stars_earned = 0
+        WHERE id = @id AND ended_at IS NULL
+    `)
 };
 
 // ============================================

@@ -209,6 +209,17 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
                 stars_earned: 0
             });
         }
+
+        // Save session progress to database after each answer (for mobile reliability)
+        const wordsAsked = session.results.length;
+        const wordsCorrect = session.results.filter(r => r.isCorrect).length;
+        sessionOperations.update.run({
+            id: sessionId,
+            ended_at: null,  // Keep null to indicate still in progress
+            words_asked: wordsAsked,
+            words_correct: wordsCorrect,
+            stars_earned: session.starsEarned
+        });
     }
 
     // Queue word for spaced retry if wrong and under retry limit (max 2 retries)
@@ -449,10 +460,56 @@ function getSessionState(userId, sessionId) {
     };
 }
 
+// Save session progress without ending (for beforeunload/periodic saves)
+function saveSessionProgress(userId, sessionId) {
+    const session = activeSessions.get(`${userId}_${sessionId}`);
+    if (!session) {
+        return { success: false, error: 'Session not found' };
+    }
+
+    const wordsAsked = session.results.length;
+    const wordsCorrect = session.results.filter(r => r.isCorrect).length;
+    const starsEarned = session.starsEarned;
+
+    // Update session record with current progress (but don't set ended_at)
+    db.prepare(`
+        UPDATE sessions
+        SET words_asked = ?, words_correct = ?, stars_earned = ?
+        WHERE id = ? AND ended_at IS NULL
+    `).run(wordsAsked, wordsCorrect, starsEarned, sessionId);
+
+    return { success: true, wordsAsked, wordsCorrect, starsEarned };
+}
+
+// Abandon a session (mark it as ended without full completion)
+function abandonSession(userId, sessionId) {
+    const session = activeSessions.get(`${userId}_${sessionId}`);
+
+    // First save any progress we have
+    if (session) {
+        saveSessionProgress(userId, sessionId);
+        activeSessions.delete(`${userId}_${sessionId}`);
+    }
+
+    // Mark session as ended with current timestamp
+    const now = getCurrentDateTime();
+    sessionOperations.update.run({
+        id: sessionId,
+        ended_at: now,
+        words_asked: session ? session.results.length : 0,
+        words_correct: session ? session.results.filter(r => r.isCorrect).length : 0,
+        stars_earned: session ? session.starsEarned : 0
+    });
+
+    return { success: true };
+}
+
 module.exports = {
     startSession,
     submitAnswer,
     endSession,
     getSessionState,
-    checkAchievements
+    checkAchievements,
+    saveSessionProgress,
+    abandonSession
 };
