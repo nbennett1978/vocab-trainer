@@ -16,11 +16,13 @@ function normalizeTurkish(str) {
     return str.split('').map(char => TURKISH_CHAR_MAP[char] || char).join('');
 }
 
-// Normalize string for comparison (lowercase + Turkish normalization + collapse spaces)
+// Normalize string for comparison (lowercase + Turkish normalization + collapse spaces + normalize hyphens)
 function normalizeForComparison(str) {
     if (!str) return '';
-    // Lowercase, trim, normalize Turkish chars, and collapse multiple spaces to single space
-    return normalizeTurkish(str.toLowerCase().trim()).replace(/\s+/g, ' ');
+    // Lowercase, trim, normalize Turkish chars, convert hyphens to spaces, collapse multiple spaces
+    return normalizeTurkish(str.toLowerCase().trim())
+        .replace(/-/g, ' ')      // Convert hyphens to spaces (horse-riding → horse riding)
+        .replace(/\s+/g, ' ');   // Collapse multiple spaces to single space
 }
 
 // Strip "to " prefix from verbs

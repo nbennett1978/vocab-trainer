@@ -789,6 +789,12 @@ body {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 
+/* Retry mode - hide slash and total when showing "Tekrar" */
+.progress-text.retry-mode .progress-slash,
+.progress-text.retry-mode #total-word-num {
+    display: none;
+}
+
 .session-stars {
     background: var(--white);
     padding: 8px 16px;
@@ -1013,8 +1019,15 @@ body {
     margin-bottom: 16px;
 }
 
+.answer-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
 .answer-input {
     flex: 1;
+    max-width: calc(100% - 60px);
     padding: 14px 18px;
     border: 3px solid var(--light-pink);
     border-radius: 16px;
@@ -1027,6 +1040,32 @@ body {
     outline: none;
     border-color: var(--primary-pink);
     box-shadow: 0 0 0 4px rgba(255, 105, 180, 0.2);
+}
+
+.char-counter {
+    min-width: 50px;
+    padding: 14px 12px;
+    border: 3px solid var(--light-pink);
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    background: var(--white);
+    color: var(--purple);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.char-counter.complete {
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.char-counter.overflow {
+    border-color: var(--error);
+    color: var(--error);
 }
 
 .answer-buttons {

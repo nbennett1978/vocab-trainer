@@ -129,6 +129,7 @@ function prepareWordForClient(sessionData) {
         english: word.english,
         turkish: word.turkish,
         answerHint: generateAnswerHint(answer),
+        answerLength: answer.length,  // Character count of expected answer
         exampleSentence: processExampleSentence(word.exampleSentence, direction),
         category: word.category,
         isVerb: word.category === 'verb',
@@ -499,22 +500,31 @@ function saveSessionProgress(userId, sessionId) {
 // Abandon a session (mark it as ended without full completion)
 function abandonSession(userId, sessionId) {
     const session = activeSessions.get(`${userId}_${sessionId}`);
-
-    // First save any progress we have
-    if (session) {
-        saveSessionProgress(userId, sessionId);
-        activeSessions.delete(`${userId}_${sessionId}`);
-    }
-
-    // Mark session as ended with current timestamp
     const now = getCurrentDateTime();
-    sessionOperations.update.run({
-        id: sessionId,
-        ended_at: now,
-        words_asked: session ? session.results.length : 0,
-        words_correct: session ? session.results.filter(r => r.isCorrect).length : 0,
-        stars_earned: session ? session.starsEarned : 0
-    });
+
+    if (session) {
+        // Session is in memory - save current progress and mark as ended
+        const wordsAsked = session.results.length;
+        const wordsCorrect = session.results.filter(r => r.isCorrect).length;
+
+        sessionOperations.update.run({
+            id: sessionId,
+            ended_at: now,
+            words_asked: wordsAsked,
+            words_correct: wordsCorrect,
+            stars_earned: session.starsEarned
+        });
+
+        activeSessions.delete(`${userId}_${sessionId}`);
+    } else {
+        // Session not in memory (server restarted) - just set ended_at
+        // Keep existing stats from per-answer saves, don't overwrite with zeros
+        db.prepare(`
+            UPDATE sessions
+            SET ended_at = ?
+            WHERE id = ? AND ended_at IS NULL
+        `).run(now, sessionId);
+    }
 
     return { success: true };
 }

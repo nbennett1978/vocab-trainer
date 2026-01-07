@@ -364,6 +364,9 @@ function setupEventListeners() {
         if (e.key === 'Enter') submitAnswer();
     });
 
+    // Update character counter as user types
+    answerInput.addEventListener('input', updateCharCounter);
+
     // Global keypress for popup
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && isPopupOpen) {
@@ -632,13 +635,21 @@ function displayWord(wordData) {
     // Store current word data for popup
     currentWordData = wordData;
 
-    // Update progress
-    document.getElementById('current-word-num').textContent = wordData.index + 1;
-    document.getElementById('total-word-num').textContent = wordData.total;
+    // Update progress - show "Tekrar" for retry words instead of exceeding total
+    if (wordData.isRetry) {
+        document.getElementById('current-word-num').textContent = 'Tekrar';
+        document.getElementById('total-word-num').textContent = '';
+        // Hide the slash between numbers
+        document.querySelector('.progress-text').classList.add('retry-mode');
+    } else {
+        document.getElementById('current-word-num').textContent = wordData.index + 1;
+        document.getElementById('total-word-num').textContent = wordData.total;
+        document.querySelector('.progress-text').classList.remove('retry-mode');
+    }
     document.getElementById('session-stars').textContent = currentSession.stars;
 
-    // Update progress bar
-    const progress = (wordData.index / wordData.total) * 100;
+    // Update progress bar (cap at 100% for retry words)
+    const progress = Math.min((wordData.index / wordData.total) * 100, 100);
     document.getElementById('progress-bar').style.width = `${progress}%`;
 
     // Update direction indicator
@@ -659,6 +670,8 @@ function displayWord(wordData) {
 
     // Update question
     document.getElementById('question-word').textContent = wordData.question;
+
+    // Show category
     document.getElementById('category-badge').textContent = wordData.category;
 
     // Update answer hint as input placeholder (underscores)
@@ -687,6 +700,9 @@ function displayWord(wordData) {
     document.getElementById('next-btn').classList.add('hidden');
     isRetryMode = false;
 
+    // Initialize character counter with answer length
+    initCharCounter(wordData.answerLength);
+
     // Handle audio for English words (en_to_tr direction only)
     const audioBtn = document.getElementById('audio-btn');
     if (isEnToTr && wordData.wordId) {
@@ -702,6 +718,30 @@ function displayWord(wordData) {
 
     // Focus input
     document.getElementById('answer-input').focus();
+}
+
+// Character counter functions
+let targetAnswerLength = 0;
+
+function initCharCounter(answerLength) {
+    targetAnswerLength = answerLength;
+    const counter = document.getElementById('char-counter');
+    counter.textContent = answerLength;
+    counter.classList.remove('complete');
+}
+
+function updateCharCounter() {
+    const input = document.getElementById('answer-input');
+    const counter = document.getElementById('char-counter');
+    const remaining = targetAnswerLength - input.value.length;
+    counter.textContent = remaining;
+
+    counter.classList.remove('complete', 'overflow');
+    if (remaining === 0) {
+        counter.classList.add('complete');
+    } else if (remaining < 0) {
+        counter.classList.add('overflow');
+    }
 }
 
 // Timer functions

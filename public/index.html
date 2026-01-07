@@ -161,8 +161,8 @@
         <div id="training-screen" class="screen">
             <header class="training-header">
                 <button id="back-btn" class="icon-btn">← Geri</button>
-                <div class="progress-indicator">
-                    <span id="current-word-num">1</span> / <span id="total-word-num">5</span>
+                <div class="progress-indicator progress-text">
+                    <span id="current-word-num">1</span><span class="progress-slash"> / </span><span id="total-word-num">5</span>
                 </div>
                 <div id="countdown-timer" class="countdown-timer">
                     <span class="timer-icon">⏱️</span>
@@ -209,7 +209,10 @@
 
                 <!-- Answer Input -->
                 <div class="answer-section">
-                    <input type="text" id="answer-input" class="answer-input" placeholder="Cevabını yaz..." autocomplete="off" autocapitalize="off">
+                    <div class="answer-input-row">
+                        <input type="text" id="answer-input" class="answer-input" placeholder="Cevabını yaz..." autocomplete="off" autocapitalize="off">
+                        <div id="char-counter" class="char-counter">0</div>
+                    </div>
                     <div class="answer-buttons">
                         <button id="dont-know-btn" class="dont-know-btn">Bilmiyorum 🤷</button>
                         <button id="submit-btn" class="submit-btn">Kontrol Et ✨</button>
