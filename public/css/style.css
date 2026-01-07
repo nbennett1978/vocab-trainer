@@ -1432,8 +1432,45 @@ body {
     padding: 10px 0;
 }
 
-.wrong-word-row:first-child {
+.wrong-word-row:not(:last-child) {
     border-bottom: 1px solid var(--light-pink);
+}
+
+/* Student's wrong answer - crossed out with red X */
+.student-answer-row {
+    position: relative;
+    background: rgba(220, 53, 69, 0.08);
+    border-radius: 8px;
+    margin: -5px;
+    padding: 15px !important;
+    margin-bottom: 5px;
+}
+
+.student-wrong-answer {
+    color: #dc3545 !important;
+    opacity: 0.7;
+    position: relative;
+    text-decoration: line-through;
+    text-decoration-color: #dc3545;
+    text-decoration-thickness: 2px;
+}
+
+/* Red X overlay */
+.student-wrong-answer::after {
+    content: "✗";
+    position: absolute;
+    right: -28px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.4rem;
+    color: #dc3545;
+    font-weight: bold;
+    opacity: 0.9;
+}
+
+/* Correct answers highlighted in green */
+.correct-answer {
+    color: var(--purple) !important;
 }
 
 .wrong-label {

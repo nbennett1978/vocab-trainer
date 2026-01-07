@@ -981,8 +981,8 @@ async function submitAnswer() {
             currentSession.nextWord = data.nextWord;
             currentSession.isComplete = data.isComplete;
 
-            // Show popup with both words
-            showWrongPopup(currentWordData.english, currentWordData.turkish);
+            // Show popup with both words and student's wrong answer
+            showWrongPopup(currentWordData.english, currentWordData.turkish, answer);
         }
 
     } catch (error) {
@@ -1097,9 +1097,20 @@ sparkleStyle.textContent = `
 document.head.appendChild(sparkleStyle);
 
 // Wrong answer popup functions
-function showWrongPopup(english, turkish) {
+function showWrongPopup(english, turkish, studentAnswer = '') {
     document.getElementById('popup-english').textContent = english;
     document.getElementById('popup-turkish').textContent = turkish;
+
+    // Show student's wrong answer if provided
+    const studentAnswerRow = document.getElementById('student-answer-row');
+    const studentAnswerEl = document.getElementById('popup-student-answer');
+    if (studentAnswer && studentAnswer.trim()) {
+        studentAnswerEl.textContent = studentAnswer;
+        studentAnswerRow.classList.remove('hidden');
+    } else {
+        studentAnswerRow.classList.add('hidden');
+    }
+
     document.getElementById('wrong-answer-popup').classList.remove('hidden');
     isPopupOpen = true;
 }

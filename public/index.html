@@ -295,13 +295,18 @@
                 <div class="wrong-popup-icon">😢</div>
                 <h2>Yanlış Cevap</h2>
                 <div class="wrong-popup-words">
+                    <!-- Student's wrong answer (shown first, crossed out) -->
+                    <div id="student-answer-row" class="wrong-word-row student-answer-row hidden">
+                        <span class="wrong-label">Senin cevabın:</span>
+                        <span id="popup-student-answer" class="wrong-value student-wrong-answer"></span>
+                    </div>
                     <div class="wrong-word-row">
                         <span class="wrong-label">🇬🇧 English:</span>
-                        <span id="popup-english" class="wrong-value"></span>
+                        <span id="popup-english" class="wrong-value correct-answer"></span>
                     </div>
                     <div class="wrong-word-row">
                         <span class="wrong-label">🇹🇷 Türkçe:</span>
-                        <span id="popup-turkish" class="wrong-value"></span>
+                        <span id="popup-turkish" class="wrong-value correct-answer"></span>
                     </div>
                 </div>
                 <p class="wrong-popup-hint">Devam etmek için Enter'a bas ⏎</p>
