@@ -274,4 +274,7 @@ rm /mnt/user/appdata/vocab-trainer/vocab.db
 ```
 The database will be recreated on next start.
 
-# Tried GEMINI to make some changes. see how it goes.....
+###########################################
+###########################################
+###########################################
+###########################################
