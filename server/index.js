@@ -6,6 +6,17 @@ const { startBackupScheduler } = require('./services/backup');
 // Initialize database
 initializeDatabase();
 
+// Clean up orphaned sessions on startup
+const { sessionOperations } = require('./db/database');
+try {
+    const info = sessionOperations.abandonOrphaned.run();
+    if (info.changes > 0) {
+        console.log(`Abandoned ${info.changes} orphaned sessions.`);
+    }
+} catch (error) {
+    console.error('Error abandoning orphaned sessions:', error);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

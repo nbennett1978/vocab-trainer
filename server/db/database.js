@@ -338,11 +338,11 @@ const sessionOperations = {
     // Get incomplete sessions (for cleanup/recovery)
     getIncomplete: db.prepare('SELECT * FROM sessions WHERE user_id = ? AND ended_at IS NULL ORDER BY started_at DESC'),
 
-    // Mark abandoned session
-    markAbandoned: db.prepare(`
+    // Mark orphaned sessions as abandoned
+    abandonOrphaned: db.prepare(`
         UPDATE sessions
-        SET ended_at = @ended_at, words_asked = 0, words_correct = 0, stars_earned = 0
-        WHERE id = @id AND ended_at IS NULL
+        SET ended_at = CURRENT_TIMESTAMP
+        WHERE ended_at IS NULL AND started_at < datetime('now', '-2 hours')
     `)
 };
 
