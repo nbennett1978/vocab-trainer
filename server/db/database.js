@@ -19,6 +19,11 @@ db.pragma('foreign_keys = ON');
 const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf-8');
 db.exec(schema);
+console.log('Database schema initialized');
+
+// Run migrations
+const { runMigrations } = require('./migrations');
+runMigrations(db);
 console.log('Database initialized successfully');
 
 // Initialize function (kept for compatibility)
@@ -112,6 +117,9 @@ const wordOperations = {
     getById: db.prepare('SELECT * FROM words WHERE id = ?'),
 
     getByEnglish: db.prepare('SELECT * FROM words WHERE english = ?'),
+
+    // Check for duplicate: same English AND same Turkish (allows same English with different Turkish)
+    getByEnglishAndTurkish: db.prepare('SELECT * FROM words WHERE english = ? AND turkish = ?'),
 
     getByCategory: db.prepare('SELECT * FROM words WHERE category = ?'),
 

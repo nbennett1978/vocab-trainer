@@ -11,9 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Words table: stores all vocabulary (shared across users)
+-- Note: english is NOT unique to allow multiple meanings (e.g., "to move" can have different Turkish translations)
 CREATE TABLE IF NOT EXISTS words (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    english TEXT NOT NULL UNIQUE,
+    english TEXT NOT NULL,
     turkish TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'other',
     example_sentence TEXT,

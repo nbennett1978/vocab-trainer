@@ -262,10 +262,11 @@ router.post('/words', (req, res) => {
             return res.status(400).json({ success: false, error: 'English and Turkish are required' });
         }
 
-        // Check for duplicate
-        const existing = wordOperations.getByEnglish.get(english.trim());
+        // Check for duplicate (same English AND same Turkish)
+        // Allows same English with different Turkish translations (e.g., "to move" with different meanings)
+        const existing = wordOperations.getByEnglishAndTurkish.get(english.trim(), turkish.trim());
         if (existing) {
-            return res.status(400).json({ success: false, error: 'Word already exists' });
+            return res.status(400).json({ success: false, error: 'This exact word pair already exists' });
         }
 
         const result = wordOperations.insert.run({
@@ -337,8 +338,8 @@ router.post('/words/upload', upload.single('file'), (req, res) => {
                     const turkish = parts[1];
                     const exampleSentence = parts[2] || null;
 
-                    // Check for duplicate
-                    const existing = wordOperations.getByEnglish.get(english);
+                    // Check for duplicate (same English AND same Turkish)
+                    const existing = wordOperations.getByEnglishAndTurkish.get(english, turkish);
                     if (existing) {
                         results.skipped++;
                         continue;
@@ -389,11 +390,13 @@ router.put('/words/:id', (req, res) => {
             return res.status(404).json({ success: false, error: 'Word not found' });
         }
 
-        // Check for duplicate if english changed
-        if (english && english !== existing.english) {
-            const duplicate = wordOperations.getByEnglish.get(english.trim());
+        // Check for duplicate if english or turkish changed
+        const newEnglish = english?.trim() || existing.english;
+        const newTurkish = turkish?.trim() || existing.turkish;
+        if (newEnglish !== existing.english || newTurkish !== existing.turkish) {
+            const duplicate = wordOperations.getByEnglishAndTurkish.get(newEnglish, newTurkish);
             if (duplicate && duplicate.id !== id) {
-                return res.status(400).json({ success: false, error: 'Word already exists' });
+                return res.status(400).json({ success: false, error: 'This exact word pair already exists' });
             }
         }
 
