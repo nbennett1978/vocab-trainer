@@ -440,6 +440,7 @@ async function loadDashboard() {
         // Update stats
         document.getElementById('total-stars').textContent = stats.totalStars;
         document.getElementById('current-streak').textContent = stats.currentStreak;
+        document.getElementById('mastered-words').textContent = progress.fullyMastered;
 
         // Enable/disable review button based on available words (boxes 3-5)
         const reviewBtn = document.querySelector('.review-btn');
