@@ -17,6 +17,17 @@ try {
     console.error('Error abandoning orphaned sessions:', error);
 }
 
+// Fix words that are only in working set for one direction
+const { fixSingleDirectionWords } = require('./services/leitner');
+try {
+    const fixed = fixSingleDirectionWords();
+    if (fixed > 0) {
+        console.log(`Fixed ${fixed} single-direction words in working set.`);
+    }
+} catch (error) {
+    console.error('Error fixing single-direction words:', error);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

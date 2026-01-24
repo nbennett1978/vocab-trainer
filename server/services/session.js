@@ -209,6 +209,17 @@ function submitAnswer(userId, sessionId, userAnswer, isRetry = false) {
             first_learned: word.isNew ? now : null
         });
 
+        // If this was a new word (box 0), also promote the OTHER direction to box 1
+        // This ensures both directions are always in the working set together
+        if (word.isNew) {
+            const otherDirection = word.direction === 'en_to_tr' ? 'tr_to_en' : 'en_to_tr';
+            db.prepare(`
+                UPDATE progress
+                SET leitner_box = 1, first_learned = COALESCE(first_learned, ?)
+                WHERE user_id = ? AND word_id = ? AND direction = ? AND leitner_box = 0
+            `).run(now, userId, word.wordId, otherDirection);
+        }
+
         // Track new word introduction
         if (word.isNew) {
             const today = getTodayDate();

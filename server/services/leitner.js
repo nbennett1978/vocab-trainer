@@ -147,8 +147,15 @@ function getEntireSetWithStats(userId) {
 // Helper function to format words with stats
 function formatWordsWithStats(words) {
     return words.map(w => {
-        const totalAsked = (w.en_to_tr_asked || 0) + (w.tr_to_en_asked || 0);
-        const totalCorrect = (w.en_to_tr_correct || 0) + (w.tr_to_en_correct || 0);
+        const enBox = Number(w.en_to_tr_box) || 0;
+        const trBox = Number(w.tr_to_en_box) || 0;
+        const enAsked = Number(w.en_to_tr_asked) || 0;
+        const trAsked = Number(w.tr_to_en_asked) || 0;
+        const enCorrect = Number(w.en_to_tr_correct) || 0;
+        const trCorrect = Number(w.tr_to_en_correct) || 0;
+
+        const totalAsked = enAsked + trAsked;
+        const totalCorrect = enCorrect + trCorrect;
         const successRate = totalAsked > 0 ? (totalCorrect / totalAsked) : null;
 
         return {
@@ -157,14 +164,14 @@ function formatWordsWithStats(words) {
             turkish: w.turkish,
             category: w.category,
             en_to_tr: {
-                box: w.en_to_tr_box || 0,
-                asked: w.en_to_tr_asked || 0,
-                correct: w.en_to_tr_correct || 0
+                box: enBox,
+                asked: enAsked,
+                correct: enCorrect
             },
             tr_to_en: {
-                box: w.tr_to_en_box || 0,
-                asked: w.tr_to_en_asked || 0,
-                correct: w.tr_to_en_correct || 0
+                box: trBox,
+                asked: trAsked,
+                correct: trCorrect
             },
             totalAsked,
             totalCorrect,
@@ -216,6 +223,7 @@ function getBox1MinSize() {
 
 // Ensure box 1 has minimum number of words for a user/direction
 // Moves words from box 0 to box 1 if below minimum
+// Now promotes BOTH directions of a word when adding to working set
 function ensureBox1MinimumSize(userId, direction) {
     const minSize = getBox1MinSize();
     if (minSize <= 0) return 0; // Feature disabled
@@ -228,26 +236,35 @@ function ensureBox1MinimumSize(userId, direction) {
     const needed = minSize - currentCount;
 
     // Get new words from box 0 for this direction
+    // Only select words where BOTH directions are still in box 0
     const newWords = db.prepare(`
         SELECT p.word_id
         FROM progress p
         WHERE p.user_id = ? AND p.direction = ? AND p.leitner_box = 0
+        AND EXISTS (
+            SELECT 1 FROM progress p2
+            WHERE p2.user_id = p.user_id
+            AND p2.word_id = p.word_id
+            AND p2.direction != p.direction
+            AND p2.leitner_box = 0
+        )
         ORDER BY RANDOM()
         LIMIT ?
     `).all(userId, direction, needed);
 
     if (newWords.length === 0) return 0;
 
-    // Move these words to box 1
+    // Move these words to box 1 for BOTH directions
     const updateStmt = db.prepare(`
         UPDATE progress
         SET leitner_box = 1, first_learned = datetime('now')
-        WHERE user_id = ? AND word_id = ? AND direction = ?
+        WHERE user_id = ? AND word_id = ? AND leitner_box = 0
     `);
 
     const transaction = db.transaction(() => {
         for (const word of newWords) {
-            updateStmt.run(userId, word.word_id, direction);
+            // This updates both directions since we don't filter by direction
+            updateStmt.run(userId, word.word_id);
         }
     });
 
@@ -525,6 +542,52 @@ function getReviewWordCount(userId) {
     return result?.count || 0;
 }
 
+// Fix words that are only in the working set for one direction
+// This finds words where one direction is box > 0 and the other is box 0,
+// and promotes the box 0 direction to box 1
+function fixSingleDirectionWords() {
+    const { userOperations } = require('../db/database');
+    const users = userOperations.getAll.all();
+
+    let totalFixed = 0;
+
+    for (const user of users) {
+        // Find words where one direction is in working set (box > 0) but other is not (box = 0)
+        const singleDirectionWords = db.prepare(`
+            SELECT p1.word_id, p1.direction as active_direction, p2.direction as inactive_direction
+            FROM progress p1
+            JOIN progress p2 ON p1.user_id = p2.user_id AND p1.word_id = p2.word_id AND p1.direction != p2.direction
+            WHERE p1.user_id = ?
+            AND p1.leitner_box > 0
+            AND p2.leitner_box = 0
+        `).all(user.id);
+
+        if (singleDirectionWords.length === 0) continue;
+
+        // Promote the inactive direction to box 1
+        const updateStmt = db.prepare(`
+            UPDATE progress
+            SET leitner_box = 1, first_learned = COALESCE(first_learned, datetime('now'))
+            WHERE user_id = ? AND word_id = ? AND direction = ? AND leitner_box = 0
+        `);
+
+        const transaction = db.transaction(() => {
+            for (const word of singleDirectionWords) {
+                updateStmt.run(user.id, word.word_id, word.inactive_direction);
+            }
+        });
+
+        transaction();
+        totalFixed += singleDirectionWords.length;
+
+        if (singleDirectionWords.length > 0) {
+            console.log(`Fixed ${singleDirectionWords.length} single-direction words for user ${user.username}`);
+        }
+    }
+
+    return totalFixed;
+}
+
 module.exports = {
     BOX_INTERVALS,
     INITIAL_WORKING_SET_SIZE,
@@ -547,5 +610,6 @@ module.exports = {
     getProgressStats,
     areAllWordsMastered,
     getReviewWordCount,
-    ensureProgressRecordsExist
+    ensureProgressRecordsExist,
+    fixSingleDirectionWords
 };

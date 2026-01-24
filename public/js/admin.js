@@ -439,7 +439,12 @@ function filterWorkingSet() {
     }
 
     // Filter by bucket (check if either direction matches the bucket)
-    if (bucket !== '') {
+    if (bucket === 'working-set') {
+        // Show only words in boxes 1-5 (at least one direction)
+        filtered = filtered.filter(w =>
+            w.en_to_tr.box > 0 || w.tr_to_en.box > 0
+        );
+    } else if (bucket !== '') {
         const bucketNum = parseInt(bucket);
         filtered = filtered.filter(w =>
             w.en_to_tr.box === bucketNum || w.tr_to_en.box === bucketNum
